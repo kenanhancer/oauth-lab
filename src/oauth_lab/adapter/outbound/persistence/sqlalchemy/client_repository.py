@@ -8,7 +8,7 @@ translated to/from the domain `Client` entity at the boundary.
 from __future__ import annotations
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from oauth_lab.adapter.outbound.persistence.orm.models import ClientRow
 from oauth_lab.domain.model.client import Client
@@ -19,7 +19,7 @@ from oauth_lab.domain.model.scope import Scope, ScopeSet
 
 
 class SqlAlchemyClientRepository:
-    def __init__(self, session_factory: async_sessionmaker) -> None:
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
     async def find_by_id(self, client_id: ClientId) -> Client | None:

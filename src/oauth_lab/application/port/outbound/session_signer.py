@@ -14,6 +14,7 @@ from typing import Protocol
 @dataclass(frozen=True, slots=True)
 class SessionData:
     user_sub: str
+    csrf_token: str
 
 
 class SessionSigner(Protocol):

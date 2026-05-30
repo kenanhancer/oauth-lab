@@ -11,6 +11,7 @@ Type annotations are PORTS (Protocols); assigned values are ADAPTERS
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from pathlib import Path
 
@@ -21,7 +22,7 @@ from oauth_lab.adapter.inbound.web.template_renderer import TemplateRenderer
 
 # Adapter — outbound (driven) implementations
 from oauth_lab.adapter.outbound.crypto.id_token_issuer import JwtIdTokenIssuer
-from oauth_lab.adapter.outbound.crypto.jwks_provider import RsaJwksProvider
+from oauth_lab.adapter.outbound.crypto.jwks_provider import RsaJwksProvider, rsa_jwk_thumbprint
 from oauth_lab.adapter.outbound.crypto.jwt_subject_token_validator import (
     JwtSubjectTokenValidator,
 )
@@ -150,6 +151,41 @@ from oauth_lab.domain.service.scope_validator import ScopeValidator
 
 _TEMPLATES_DIR = Path(__file__).parent / "adapter" / "inbound" / "web" / "templates"
 
+_logger = logging.getLogger("oauth_lab")
+
+_DEV_SESSION_SECRET = "dev-only-change-me"                 # noqa: S105 — matches Settings default (not a real secret)
+_LOCALHOST_ISSUER_PREFIXES = ("http://localhost", "http://127.0.0.1")
+
+
+def _is_localhost_issuer(issuer: str) -> bool:
+    return issuer.startswith(_LOCALHOST_ISSUER_PREFIXES)
+
+
+def _check_session_secret(settings: Settings) -> None:
+    """Fail closed if the default session secret is used off localhost.
+
+    The default `session_secret_key` is publicly known, so anyone could forge
+    a signed session cookie (login/consent state). On a non-localhost issuer
+    that is a live auth bypass — refuse to start. On localhost we allow it for
+    zero-config dev, but warn loudly.
+    """
+    if settings.session_secret_key != _DEV_SESSION_SECRET:
+        return
+    if _is_localhost_issuer(settings.issuer):
+        _logger.warning(
+            "OAUTH_LAB_SESSION_SECRET_KEY is the built-in default %r; sessions "
+            "are forgeable. Acceptable for localhost dev only — set a real "
+            "secret before exposing this server.",
+            _DEV_SESSION_SECRET,
+        )
+        return
+    raise RuntimeError(
+        "Refusing to start: OAUTH_LAB_SESSION_SECRET_KEY is still the built-in "
+        f"default {_DEV_SESSION_SECRET!r} but the issuer ({settings.issuer!r}) is "
+        "not localhost. The default key is public, so session cookies would be "
+        "forgeable. Set OAUTH_LAB_SESSION_SECRET_KEY to a strong random value."
+    )
+
 
 @dataclass(slots=True)
 class Container:
@@ -211,6 +247,8 @@ async def build_container(
     `*_override` parameters let tests inject in-memory repositories
     pre-populated with fixture data, bypassing the database entirely.
     """
+    _check_session_secret(settings)
+
     clock = SystemClock()
     random_source = SecureRandomSource()
     user_code_generator: UserCodeGenerator = SecureUserCodeGenerator()
@@ -239,7 +277,17 @@ async def build_container(
         signing_key_pem = load_or_create_keypair(settings.jwt_private_key_path)
     else:
         signing_key_pem = generate_rsa_keypair_pem()
-    signing_kid = settings.jwt_key_id or "oauth-lab-key-1"
+        _logger.warning(
+            "No OAUTH_LAB_JWT_PRIVATE_KEY_PATH set: generated an ephemeral RSA "
+            "signing key. Issued JWTs/id_tokens will not verify after a restart, "
+            "and replicas will each sign with a different key. Set a key path for "
+            "stable, shared signing."
+        )
+    # Default `kid` to the RFC 7638 JWK thumbprint of the public key. Unlike a
+    # static literal, the thumbprint is unique per key, so replicas with
+    # different (e.g. ephemeral) keys advertise distinct `kid`s and a verifier
+    # can pick the matching JWKS entry instead of seeing a single colliding id.
+    signing_kid = settings.jwt_key_id or rsa_jwk_thumbprint(signing_key_pem)
 
     jwks_provider: JwksProvider = RsaJwksProvider(
         private_key_pem=signing_key_pem, kid=signing_kid, algorithm=settings.jwt_algorithm

@@ -1,7 +1,10 @@
 # Files preserved across generator runs. Anything matched here is NEVER
 # overwritten by `just gen`.
 
-# Project metadata we own
+# Project metadata we own. pyproject.toml (hatchling) is the single source of
+# truth for dependencies and tooling config, so the generator's requirements.txt,
+# setup.cfg, and .flake8 are intentionally dropped — do NOT preserve or recreate
+# them.
 README.md
 pyproject.toml
 requirements.txt

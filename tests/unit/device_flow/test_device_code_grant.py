@@ -184,3 +184,15 @@ class TestDeviceCodeGrantStateMachine:
         assert result.access_token == "stub-access-token"
         assert result.token_type == "Bearer"
         assert result.refresh_token is not None                   # demo-device supports refresh
+
+    async def test_approved_code_is_single_use(self) -> None:
+        # First poll after approval succeeds; the second must fail —
+        # a device code is single-use (token-amplification defence).
+        grant, repo = _grant()
+        await repo.save(_make_code(user_sub="user-alice"))
+
+        first = await grant.execute(_request(), _make_client())
+        assert first.access_token == "stub-access-token"
+
+        with pytest.raises(InvalidGrant, match="already redeemed"):
+            await grant.execute(_request(), _make_client())

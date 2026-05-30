@@ -31,7 +31,7 @@ class ItsdangerousSessionSigner:
         self._ttl = ttl_seconds
 
     def sign(self, data: SessionData) -> str:
-        return self._serializer.dumps({"sub": data.user_sub})
+        return self._serializer.dumps({"sub": data.user_sub, "csrf": data.csrf_token})
 
     def verify(self, token: str | None) -> SessionData | None:
         if not token:
@@ -40,7 +40,12 @@ class ItsdangerousSessionSigner:
             payload = self._serializer.loads(token, max_age=self._ttl)
         except (BadSignature, SignatureExpired):
             return None
-        sub = payload.get("sub") if isinstance(payload, dict) else None
+        if not isinstance(payload, dict):
+            return None
+        sub = payload.get("sub")
+        csrf = payload.get("csrf")
         if not isinstance(sub, str) or not sub:
             return None
-        return SessionData(user_sub=sub)
+        if not isinstance(csrf, str) or not csrf:
+            return None
+        return SessionData(user_sub=sub, csrf_token=csrf)

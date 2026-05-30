@@ -31,6 +31,15 @@ class TestOAuthAuthorizationServerMetadata:
         assert "authorization_code" in body["grant_types_supported"]
         assert "client_credentials" in body["grant_types_supported"]
         assert "refresh_token" in body["grant_types_supported"]
+        # Every grant the AS actually implements must be advertised (RFC 8414 §2).
+        assert "urn:ietf:params:oauth:grant-type:device_code" in body["grant_types_supported"]
+        assert "urn:ietf:params:oauth:grant-type:jwt-bearer" in body["grant_types_supported"]
+        assert (
+            "urn:ietf:params:oauth:grant-type:token-exchange"
+            in body["grant_types_supported"]
+        )
+        # Device flow is implemented, so its endpoint is discoverable (RFC 8628 §4).
+        assert body["device_authorization_endpoint"].endswith("/device_authorization")
         assert body["code_challenge_methods_supported"] == ["S256"]                # OAuth 2.1
         assert "none" in body["token_endpoint_auth_methods_supported"]
         assert "client_secret_basic" in body["token_endpoint_auth_methods_supported"]

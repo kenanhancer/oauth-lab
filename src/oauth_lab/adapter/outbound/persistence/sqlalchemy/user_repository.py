@@ -3,14 +3,14 @@
 from __future__ import annotations
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from oauth_lab.adapter.outbound.persistence.orm.models import UserRow
 from oauth_lab.domain.model.user import User
 
 
 class SqlAlchemyUserRepository:
-    def __init__(self, session_factory: async_sessionmaker) -> None:
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
     async def find_by_sub(self, sub: str) -> User | None:

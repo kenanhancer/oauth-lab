@@ -9,6 +9,7 @@
 {% endfor %}
 </ul>
 <form method="post" action="/device/consent">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="user_code" value="{{ user_code }}">
     <button type="submit" name="decision" value="approve"
             class="btn btn-primary w-100 mb-2">Approve</button>

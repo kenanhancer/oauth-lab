@@ -16,8 +16,16 @@ import pytest
 from oauth_lab.adapter.outbound.persistence.memory.refresh_token_repository import (
     InMemoryRefreshTokenRepository,
 )
+from oauth_lab.adapter.outbound.random.secure_random_source import SecureRandomSource
+from oauth_lab.application.port.outbound.token_issuer import IssuedToken
+from oauth_lab.application.service.client_auth.client_authenticator import AuthenticatedClient
+from oauth_lab.application.service.grant.grant_strategy import TokenRequest
+from oauth_lab.application.service.grant.refresh_token_grant import RefreshTokenGrant
+from oauth_lab.domain.model.client import Client
+from oauth_lab.domain.model.client_auth_method import ClientAuthMethod
 from oauth_lab.domain.model.client_id import ClientId
-from oauth_lab.domain.model.errors import InvalidGrant
+from oauth_lab.domain.model.errors import InvalidGrant, InvalidScope
+from oauth_lab.domain.model.grant_type import GrantType
 from oauth_lab.domain.model.refresh_token import RefreshToken
 from oauth_lab.domain.model.scope import Scope, ScopeSet
 
@@ -120,3 +128,104 @@ class TestInMemoryRefreshTokenRepository:
         assert (await repo.find_by_value("a")).is_consumed()             # type: ignore[union-attr]
         assert (await repo.find_by_value("b")).is_consumed()             # type: ignore[union-attr]
         assert (await repo.find_by_value("c")).is_consumed() is False    # type: ignore[union-attr]
+
+
+class _FixedClock:
+    def __init__(self, value: datetime) -> None:
+        self._value = value
+
+    def now(self) -> datetime:
+        return self._value
+
+
+class _StubTokenIssuer:
+    async def issue(self, *, subject, client_id, scope, audience, ttl_seconds):
+        return IssuedToken(value="stub-access-token", expires_in_seconds=ttl_seconds)
+
+
+def _make_client() -> AuthenticatedClient:
+    return AuthenticatedClient(
+        client=Client(
+            id=ClientId("demo-spa"),
+            secret_hash=None,
+            token_endpoint_auth_method=ClientAuthMethod.NONE,
+            allowed_grant_types=frozenset({GrantType.REFRESH_TOKEN}),
+            allowed_scopes=ScopeSet(frozenset({Scope("read"), Scope("write")})),
+        ),
+        auth_method=ClientAuthMethod.NONE,
+    )
+
+
+def _narrowing_grant(
+    repo: InMemoryRefreshTokenRepository,
+) -> RefreshTokenGrant:
+    return RefreshTokenGrant(
+        token_issuer=_StubTokenIssuer(),
+        refresh_tokens=repo,
+        random_source=SecureRandomSource(),
+        clock=_FixedClock(_NOW),
+        access_token_ttl_seconds=3600,
+        refresh_token_ttl_seconds=2592000,
+    )
+
+
+class TestRefreshTokenScopeNarrowing:
+    """RFC 6749 § 6 — a refresh request may narrow scope but never widen it."""
+
+    async def _seed(self, repo: InMemoryRefreshTokenRepository) -> RefreshToken:
+        token = RefreshToken(
+            value="rt-original",
+            family_id="family-A",
+            client_id=ClientId("demo-spa"),
+            user_sub="user-alice",
+            scope=ScopeSet(frozenset({Scope("read"), Scope("write")})),
+            issued_at=_NOW,
+            expires_at=_NOW + timedelta(days=30),
+        )
+        await repo.save(token)
+        return token
+
+    async def test_empty_scope_reuses_original(self) -> None:
+        repo = InMemoryRefreshTokenRepository()
+        await self._seed(repo)
+        grant = _narrowing_grant(repo)
+
+        result = await grant.execute(
+            TokenRequest(grant_type=GrantType.REFRESH_TOKEN, refresh_token="rt-original"),
+            _make_client(),
+        )
+        assert result.scope == ScopeSet(frozenset({Scope("read"), Scope("write")}))
+
+    async def test_subset_scope_narrows(self) -> None:
+        repo = InMemoryRefreshTokenRepository()
+        await self._seed(repo)
+        grant = _narrowing_grant(repo)
+
+        result = await grant.execute(
+            TokenRequest(
+                grant_type=GrantType.REFRESH_TOKEN,
+                refresh_token="rt-original",
+                scope=ScopeSet(frozenset({Scope("read")})),
+            ),
+            _make_client(),
+        )
+        assert result.scope == ScopeSet(frozenset({Scope("read")}))
+        # The new refresh token carries the narrowed scope too.
+        new_rt = await repo.find_by_value(result.refresh_token)  # type: ignore[arg-type]
+        assert new_rt is not None
+        assert new_rt.scope == ScopeSet(frozenset({Scope("read")}))
+
+    async def test_widening_scope_rejected(self) -> None:
+        repo = InMemoryRefreshTokenRepository()
+        await self._seed(repo)
+        grant = _narrowing_grant(repo)
+
+        with pytest.raises(InvalidScope, match="exceeds"):
+            await grant.execute(
+                TokenRequest(
+                    grant_type=GrantType.REFRESH_TOKEN,
+                    refresh_token="rt-original",
+                    scope=ScopeSet(frozenset({Scope("read"), Scope("admin")})),
+                ),
+                _make_client(),
+            )

@@ -7,8 +7,9 @@ Hexagonal application).
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+import logging
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse
@@ -29,11 +30,29 @@ from oauth_lab.config import Settings
 from oauth_lab.container import build_container
 
 
-@asynccontextmanager
-async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    settings = Settings()
-    app.state.container = await build_container(settings)
-    yield
+def _make_lifespan(
+    settings: Settings | None,
+) -> Callable[[FastAPI], AbstractAsyncContextManager[None]]:
+    """Build a lifespan that wires the container at startup.
+
+    `settings` is captured from `create_app(settings=...)`; when omitted we
+    read the environment via `Settings()` at startup (the production path).
+    Either way the container ends up on `app.state.container`, so passing
+    explicit settings no longer disables wiring (the previous footgun).
+
+    If `app.state.container` is already set (tests inject one directly after
+    `create_app`), we keep it — startup stays idempotent and test-friendly.
+    """
+
+    @asynccontextmanager
+    async def lifespan(app: FastAPI) -> AsyncIterator[None]:
+        resolved = settings if settings is not None else Settings()
+        logging.basicConfig(level=resolved.log_level)
+        if getattr(app.state, "container", None) is None:
+            app.state.container = await build_container(resolved)
+        yield
+
+    return lifespan
 
 
 def create_app(*, settings: Settings | None = None) -> FastAPI:
@@ -41,7 +60,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         title="oauth-lab",
         description="OAuth 2.1 authorization server — canonical Hexagonal reference",
         version="0.1.0",
-        lifespan=lifespan if settings is None else None,
+        lifespan=_make_lifespan(settings),
     )
 
     register_oauth_exception_handler(app)

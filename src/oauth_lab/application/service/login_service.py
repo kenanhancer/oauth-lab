@@ -8,6 +8,8 @@ response.
 
 from __future__ import annotations
 
+import secrets
+
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
@@ -42,4 +44,9 @@ class LoginService:
             self._hasher.verify(user.password_hash.decode("utf-8"), password)
         except VerifyMismatchError as exc:
             raise InvalidCredentials("invalid username or password") from exc
-        return self._session_signer.sign(SessionData(user_sub=user.sub))
+        # Synchronizer CSRF token, minted with the session and carried inside the
+        # signed cookie. Consent forms echo it back in a hidden field; the POST
+        # handlers compare the two with `secrets.compare_digest`.
+        return self._session_signer.sign(
+            SessionData(user_sub=user.sub, csrf_token=secrets.token_urlsafe(32))
+        )

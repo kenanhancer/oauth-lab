@@ -56,6 +56,7 @@ class AuthorizeShowConsent:
     redirect_uri: str
     state: str | None
     code_challenge: PKCEChallenge
+    csrf_token: str
 
 
 @dataclass(frozen=True, slots=True)
@@ -199,6 +200,7 @@ class AuthorizeService:
             redirect_uri=redirect_uri,
             state=request.state,
             code_challenge=pkce_challenge,
+            csrf_token=session.csrf_token,
         )
 
 

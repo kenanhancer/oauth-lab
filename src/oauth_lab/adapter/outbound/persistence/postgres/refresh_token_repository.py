@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from oauth_lab.adapter.outbound.persistence.sqlalchemy.refresh_token_repository import (
     SqlAlchemyRefreshTokenRepository,
@@ -10,5 +10,5 @@ from oauth_lab.adapter.outbound.persistence.sqlalchemy.refresh_token_repository 
 
 
 class PostgresRefreshTokenRepository(SqlAlchemyRefreshTokenRepository):
-    def __init__(self, session_factory: async_sessionmaker) -> None:
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         super().__init__(session_factory)

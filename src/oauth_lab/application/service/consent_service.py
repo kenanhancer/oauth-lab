@@ -25,7 +25,7 @@ from oauth_lab.application.port.outbound.clock import Clock
 from oauth_lab.application.port.outbound.random_source import RandomSource
 from oauth_lab.domain.model.authorization_code import AuthorizationCode
 from oauth_lab.domain.model.client_id import ClientId
-from oauth_lab.domain.model.errors import InvalidRequest
+from oauth_lab.domain.model.errors import InvalidRequest, InvalidScope
 from oauth_lab.domain.model.grant_type import GrantType
 from oauth_lab.domain.model.pkce import PKCEChallenge
 from oauth_lab.domain.model.scope import ScopeSet
@@ -89,10 +89,16 @@ class ConsentService:
         pkce_challenge = PKCEChallenge(
             value=decision.code_challenge, method=decision.code_challenge_method or "S256"
         )
+        # The scope field is user-controllable — a confused or malicious
+        # user-agent could request more than the client is registered for.
+        # Re-validate the subset relation here, mirroring /authorize.
         requested_scope = ScopeSet.parse(decision.scope)
-        granted_scope = (
-            requested_scope if not requested_scope.is_empty() else client.allowed_scopes
-        )
+        if not requested_scope.is_empty():
+            if not requested_scope.is_subset_of(client.allowed_scopes):
+                raise InvalidScope("requested scope exceeds the client's allowed scopes")
+            granted_scope = requested_scope
+        else:
+            granted_scope = client.allowed_scopes
 
         now = self._clock.now()
         code = AuthorizationCode(

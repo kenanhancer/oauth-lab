@@ -1,7 +1,7 @@
 """TokenIssuer port — abstracts opaque vs JWT access token issuance.
 
-Concrete implementations live under `infrastructure/crypto/`. The Factory
-in `infrastructure/crypto/token_issuer_factory.py` selects between them
+Concrete implementations live under `adapter/outbound/crypto/`. The Factory
+in `adapter/outbound/crypto/token_issuer_factory.py` selects between them
 based on AS policy.
 """
 

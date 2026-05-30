@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from sqlalchemy import select
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from oauth_lab.adapter.outbound.persistence.orm.models import DeviceCodeRow
 from oauth_lab.domain.model.client_id import ClientId
@@ -12,7 +12,7 @@ from oauth_lab.domain.model.scope import Scope, ScopeSet
 
 
 class SqlAlchemyDeviceCodeRepository:
-    def __init__(self, session_factory: async_sessionmaker) -> None:
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
     async def save(self, code: DeviceCode) -> None:
@@ -51,6 +51,7 @@ def _to_domain(row: DeviceCodeRow) -> DeviceCode:
         last_polled_at=row.last_polled_at,
         user_sub=row.user_sub,
         denied=row.denied,
+        redeemed_at=row.redeemed_at,
     )
 
 
@@ -66,6 +67,7 @@ def _to_row(code: DeviceCode) -> DeviceCodeRow:
         last_polled_at=code.last_polled_at,
         user_sub=code.user_sub,
         denied=code.denied,
+        redeemed_at=code.redeemed_at,
     )
 
 
@@ -79,3 +81,4 @@ def _update_row(row: DeviceCodeRow, code: DeviceCode) -> None:
     row.last_polled_at = code.last_polled_at
     row.user_sub = code.user_sub
     row.denied = code.denied
+    row.redeemed_at = code.redeemed_at

@@ -57,10 +57,14 @@ async def userinfo(
     if not isinstance(sub, str):
         raise InvalidClient("token has no `sub` claim")
 
+    # OIDC Core § 5.3 returns user claims — never cache them (they are
+    # per-token, potentially sensitive PII).
+    no_store = {"Cache-Control": "no-store"}
+
     user = await container.users.find_by_sub(sub)
     if user is None:
         # Could be a client_credentials token (no user) — return what we know.
-        return JSONResponse(content={"sub": sub})
+        return JSONResponse(content={"sub": sub}, headers=no_store)
 
     # Standard OIDC scopes → claim sets (OIDC Core § 5.4).
     response: dict[str, object] = {"sub": user.sub}
@@ -70,4 +74,4 @@ async def userinfo(
         response["email"] = user.email
         response["email_verified"] = True                             # demo defaults
 
-    return JSONResponse(content=response)
+    return JSONResponse(content=response, headers=no_store)

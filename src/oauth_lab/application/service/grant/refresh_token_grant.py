@@ -26,7 +26,12 @@ from oauth_lab.application.service.grant.grant_strategy import (
     TokenIssuanceResult,
     TokenRequest,
 )
-from oauth_lab.domain.model.errors import InvalidGrant, InvalidRequest, UnauthorizedClient
+from oauth_lab.domain.model.errors import (
+    InvalidGrant,
+    InvalidRequest,
+    InvalidScope,
+    UnauthorizedClient,
+)
 from oauth_lab.domain.model.grant_type import GrantType
 from oauth_lab.domain.model.refresh_token import RefreshToken
 
@@ -82,13 +87,23 @@ class RefreshTokenGrant(GrantStrategy):
         if token.is_expired(now):
             raise InvalidGrant("refresh token has expired")
 
+        # Scope narrowing — RFC 6749 § 6: a refresh request MAY include a
+        # scope, but it MUST NOT exceed the scope originally granted.
+        # Absent (or empty) scope reuses the token's scope unchanged.
+        if not request.scope.is_empty():
+            if not request.scope.is_subset_of(token.scope):
+                raise InvalidScope("requested scope exceeds the originally granted scope")
+            granted_scope = request.scope.intersect(token.scope)
+        else:
+            granted_scope = token.scope
+
         # Mint replacement before the atomic rotation — same family.
         new_token = RefreshToken(
             value=self._random.token_urlsafe(32),
             family_id=token.family_id,
             client_id=token.client_id,
             user_sub=token.user_sub,
-            scope=token.scope,
+            scope=granted_scope,
             issued_at=now,
             expires_at=now + timedelta(seconds=self._refresh_ttl),
         )
@@ -101,15 +116,15 @@ class RefreshTokenGrant(GrantStrategy):
         issued_access = await self._token_issuer.issue(
             subject=token.user_sub,
             client_id=str(client.id),
-            scope=token.scope,
+            scope=granted_scope,
             audience=client.default_audience,
             ttl_seconds=self._access_ttl,
         )
 
         return TokenIssuanceResult(
             access_token=issued_access.value,
-            token_type="Bearer",
+            token_type="Bearer",                                                                # noqa: S106
             expires_in=issued_access.expires_in_seconds,
-            scope=token.scope,
+            scope=granted_scope,
             refresh_token=new_token.value,
         )

@@ -13,6 +13,7 @@ user comes back with the code intact.
 
 from __future__ import annotations
 
+import secrets
 from typing import Annotated
 from urllib.parse import quote_plus
 
@@ -29,6 +30,7 @@ from oauth_lab.application.port.inbound.lookup_device_code_use_case import (
 )
 from oauth_lab.application.port.outbound.session_signer import SessionSigner
 from oauth_lab.container import Container
+from oauth_lab.domain.model.errors import InvalidRequest
 
 router = APIRouter()
 
@@ -112,6 +114,7 @@ async def _render_device_page(
         user_code=view.user_code,
         client_id=view.client_id,
         requested_scopes=list(view.requested_scopes),
+        csrf_token=session.csrf_token,
     )
     return HTMLResponse(content=html)
 
@@ -160,11 +163,15 @@ async def device_consent(
     signer: Annotated[SessionSigner, Depends(_session_signer)],
     user_code: Annotated[str, Form()],
     decision: Annotated[str, Form()],                                  # "approve" | "deny"
+    csrf_token: Annotated[str, Form()] = "",
     session_cookie: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
 ) -> Response:
     session = signer.verify(session_cookie)
     if session is None:
         return RedirectResponse(url="/login", status_code=303)
+
+    if not secrets.compare_digest(csrf_token, session.csrf_token):
+        raise InvalidRequest("CSRF token mismatch")
 
     await consent_use_case.execute(
         DeviceConsentDecision(

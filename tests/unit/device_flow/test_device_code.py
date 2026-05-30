@@ -85,3 +85,11 @@ class TestDeviceCodeStateMachine:
         polled = code.mark_polled(_NOW + timedelta(seconds=1))
         assert polled.last_polled_at == _NOW + timedelta(seconds=1)
         assert code.last_polled_at is None                       # immutable
+
+    def test_redeem_sets_timestamp_and_is_immutable(self) -> None:
+        code = _make_code(user_sub="user-alice")
+        assert not code.is_redeemed()
+        redeemed = code.redeem(_NOW + timedelta(seconds=2))
+        assert redeemed.is_redeemed()
+        assert redeemed.redeemed_at == _NOW + timedelta(seconds=2)
+        assert code.redeemed_at is None                          # immutable

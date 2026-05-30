@@ -14,7 +14,6 @@ dependencies = [
   "sqlalchemy[asyncio] >=2.0",
   "aiosqlite >=0.20",
   "asyncpg >=0.29",
-  "alembic >=1.13",
   "pyjwt[crypto] >=2.9",
   "cryptography >=43",
   "argon2-cffi >=23",
@@ -41,7 +40,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/oauth_lab", "src/openapi_server"]
+packages = ["src/oauth_lab"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
@@ -72,13 +71,8 @@ ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106"]
-"src/openapi_server/**" = ["E501", "F401", "N801", "N803", "N806", "B008", "UP", "RUF"]
 
 [tool.mypy]
 python_version = "3.12"
 strict = true
 mypy_path = "src"
-
-[[tool.mypy.overrides]]
-module = "openapi_server.*"
-ignore_errors = true

@@ -10,6 +10,7 @@
 {% endfor %}
 </ul>
 <form method="post" action="/consent">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token }}">
     <input type="hidden" name="client_id" value="{{ client_id }}">
     <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
     <input type="hidden" name="scope" value="{{ scope_str }}">

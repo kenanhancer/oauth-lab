@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import base64
 import binascii
+import contextlib
 from urllib.parse import unquote
 
 from argon2 import PasswordHasher
@@ -25,6 +26,8 @@ class ClientSecretBasicAuthenticator(ClientAuthenticator):
     def __init__(self, clients: ClientRepository) -> None:
         self._clients = clients
         self._hasher = PasswordHasher()
+        # Pre-computed throwaway hash for the unknown-client timing equaliser.
+        self._dummy_hash = self._hasher.hash("dummy-secret-for-constant-time")
 
     def can_handle(self, creds: ClientCredentials) -> bool:
         return creds.basic_auth_header is not None
@@ -35,6 +38,10 @@ class ClientSecretBasicAuthenticator(ClientAuthenticator):
 
         client = await self._clients.find_by_id(ClientId(client_id_str))
         if client is None:
+            # Verify against a throwaway hash to keep the timing constant —
+            # an attacker must not be able to distinguish "unknown client"
+            # from "wrong secret" by latency.
+            self._verify_dummy(client_secret)
             raise InvalidClient("unknown client_id")
         if client.token_endpoint_auth_method != ClientAuthMethod.CLIENT_SECRET_BASIC:
             raise InvalidClient("client is not configured for client_secret_basic")
@@ -60,3 +67,10 @@ class ClientSecretBasicAuthenticator(ClientAuthenticator):
             self._hasher.verify(client.secret_hash.decode("utf-8"), secret_plaintext)
         except VerifyMismatchError as exc:
             raise InvalidClient("client authentication failed") from exc
+
+    def _verify_dummy(self, secret_plaintext: str) -> None:
+        """Burn the same argon2 work the real path would, then discard the
+        result. Keeps unknown-client latency indistinguishable from a
+        wrong-secret rejection."""
+        with contextlib.suppress(VerifyMismatchError):
+            self._hasher.verify(self._dummy_hash, secret_plaintext)

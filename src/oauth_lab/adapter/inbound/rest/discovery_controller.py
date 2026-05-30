@@ -31,11 +31,15 @@ def _base_metadata(container: Container) -> dict[str, object]:
         "authorization_endpoint": f"{issuer}/authorize",
         "token_endpoint": f"{issuer}/token",
         "jwks_uri": f"{issuer}/jwks",
+        "device_authorization_endpoint": f"{issuer}/device_authorization",        # RFC 8628 §4
         "response_types_supported": ["code"],                                     # OAuth 2.1
         "grant_types_supported": [
             "authorization_code",
             "client_credentials",
             "refresh_token",
+            "urn:ietf:params:oauth:grant-type:device_code",                       # RFC 8628
+            "urn:ietf:params:oauth:grant-type:jwt-bearer",                        # RFC 7523
+            "urn:ietf:params:oauth:grant-type:token-exchange",                    # RFC 8693
         ],
         "code_challenge_methods_supported": ["S256"],                             # plain is rejected
         "token_endpoint_auth_methods_supported": [

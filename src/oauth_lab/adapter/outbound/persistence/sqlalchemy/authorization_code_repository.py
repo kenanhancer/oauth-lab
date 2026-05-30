@@ -12,9 +12,10 @@ an explicit transaction lock.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, cast
 
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy import CursorResult, select, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from oauth_lab.adapter.outbound.persistence.orm.models import AuthorizationCodeRow
 from oauth_lab.domain.model.authorization_code import AuthorizationCode
@@ -25,7 +26,7 @@ from oauth_lab.domain.model.scope import Scope, ScopeSet
 
 
 class SqlAlchemyAuthorizationCodeRepository:
-    def __init__(self, session_factory: async_sessionmaker) -> None:
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
     async def save(self, code: AuthorizationCode) -> None:
@@ -52,7 +53,7 @@ class SqlAlchemyAuthorizationCodeRepository:
                 )
                 .values(consumed_at=now)
             )
-            result = await session.execute(stmt)
+            result = cast("CursorResult[Any]", await session.execute(stmt))
             await session.commit()
             if result.rowcount == 0:
                 # Distinguish missing vs replayed vs expired for clearer errors.

@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from oauth_lab.adapter.outbound.persistence.sqlalchemy.device_code_repository import (
     SqlAlchemyDeviceCodeRepository,
@@ -10,5 +10,5 @@ from oauth_lab.adapter.outbound.persistence.sqlalchemy.device_code_repository im
 
 
 class PostgresDeviceCodeRepository(SqlAlchemyDeviceCodeRepository):
-    def __init__(self, session_factory: async_sessionmaker) -> None:
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         super().__init__(session_factory)

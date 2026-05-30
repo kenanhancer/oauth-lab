@@ -52,9 +52,11 @@ class JwtTokenIssuer:
             "nbf": int(now.timestamp()),
             "exp": int((now + timedelta(seconds=ttl_seconds)).timestamp()),
             "jti": self._random.token_urlsafe(16),
+            # RFC 9068 §2.2 requires `aud`. When the caller supplies no
+            # audience, fall back to the issuer itself so the claim is never
+            # absent (the AS is, at minimum, an audience of its own tokens).
+            "aud": audience if audience else self._issuer,
         }
-        if audience:
-            claims["aud"] = audience
         if not scope.is_empty():
             claims["scope"] = scope.to_str()
 

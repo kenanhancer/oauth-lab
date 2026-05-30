@@ -3,7 +3,7 @@ SQLAlchemy implementation."""
 
 from __future__ import annotations
 
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from oauth_lab.adapter.outbound.persistence.sqlalchemy.authorization_code_repository import (
     SqlAlchemyAuthorizationCodeRepository,
@@ -11,5 +11,5 @@ from oauth_lab.adapter.outbound.persistence.sqlalchemy.authorization_code_reposi
 
 
 class PostgresAuthorizationCodeRepository(SqlAlchemyAuthorizationCodeRepository):
-    def __init__(self, session_factory: async_sessionmaker) -> None:
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         super().__init__(session_factory)

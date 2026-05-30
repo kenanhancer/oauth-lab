@@ -7,6 +7,7 @@ is the collection a client requested or was granted.
 from __future__ import annotations
 
 import re
+from collections.abc import Iterator
 from dataclasses import dataclass
 
 # RFC 6749 §3.3 ABNF: 1*( %x21 / %x23-5B / %x5D-7E )
@@ -28,7 +29,7 @@ class Scope:
 
 @dataclass(frozen=True, slots=True)
 class ScopeSet:
-    """An immutable, order-preserving (insertion order) set of scopes."""
+    """An immutable set of scopes (backed by a frozenset; unordered)."""
 
     scopes: frozenset[Scope]
 
@@ -50,7 +51,7 @@ class ScopeSet:
     def is_empty(self) -> bool:
         return not self.scopes
 
-    def __iter__(self):
+    def __iter__(self) -> Iterator[Scope]:
         return iter(self.scopes)
 
     def __len__(self) -> int:

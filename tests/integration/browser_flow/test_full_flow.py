@@ -20,6 +20,7 @@ Location: `tests/integration/browser_flow/` — folder name carries the scenario
 
 from __future__ import annotations
 
+import re
 from urllib.parse import parse_qs, urlencode, urlparse
 
 import pytest
@@ -49,6 +50,13 @@ def _authorize_qs(**overrides: str) -> str:
     }
     params.update(overrides)
     return urlencode(params)
+
+
+def _csrf(html: str) -> str:
+    """Scrape the synchronizer CSRF token rendered into the consent page."""
+    match = re.search(r'name="csrf_token" value="([^"]+)"', html)
+    assert match, "csrf_token hidden field not found in rendered page"
+    return match.group(1)
 
 
 class TestEndToEndBrowserFlow:
@@ -82,12 +90,14 @@ class TestEndToEndBrowserFlow:
         assert "Authorize" in resp.text
         assert DEMO_PUBLIC_CLIENT_ID in resp.text
         assert "read" in resp.text                                       # requested scope rendered
+        csrf = _csrf(resp.text)
 
         # Step 4 — POST /consent (approve) ⇒ 303 to redirect_uri?code=...&state=...
         resp = await http_client.post(
             "/consent",
             data={
                 "decision": "approve",
+                "csrf_token": csrf,
                 "client_id": DEMO_PUBLIC_CLIENT_ID,
                 "redirect_uri": DEMO_PUBLIC_CLIENT_REDIRECT_URI,
                 "scope": "read",
@@ -164,10 +174,18 @@ class TestConsentEdgeCases:
         self, http_client: AsyncClient
     ) -> None:
         cookie = await self._sign_in(http_client)
+        # Render the consent page (with the session) to obtain the CSRF token.
+        page = await http_client.get(
+            f"/authorize?{_authorize_qs(state='abc')}",
+            cookies={"oauth_lab_session": cookie},
+        )
+        assert page.status_code == 200
+        csrf = _csrf(page.text)
         resp = await http_client.post(
             "/consent",
             data={
                 "decision": "deny",
+                "csrf_token": csrf,
                 "client_id": DEMO_PUBLIC_CLIENT_ID,
                 "redirect_uri": DEMO_PUBLIC_CLIENT_REDIRECT_URI,
                 "scope": "read",

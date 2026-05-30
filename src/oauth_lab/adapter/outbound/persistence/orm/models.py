@@ -79,6 +79,7 @@ class DeviceCodeRow(Base):
     last_polled_at: Mapped[datetime | None] = mapped_column(nullable=True)
     user_sub: Mapped[str | None] = mapped_column(nullable=True)                # None until approved
     denied: Mapped[bool] = mapped_column(default=False)
+    redeemed_at: Mapped[datetime | None] = mapped_column(nullable=True)        # None until redeemed
 
 
 class TrustedAssertionIssuerRow(Base):

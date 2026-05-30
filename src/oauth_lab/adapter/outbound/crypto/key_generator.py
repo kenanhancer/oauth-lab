@@ -11,6 +11,7 @@ or EC keys.
 
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from cryptography.hazmat.primitives import serialization
@@ -37,10 +38,20 @@ def public_key_pem_from_private(private_pem: bytes) -> bytes:
 
 
 def load_or_create_keypair(path: Path, key_size: int = 2048) -> bytes:
-    """Read a PEM key from disk, or generate + persist if it doesn't exist."""
+    """Read a PEM key from disk, or generate + persist if it doesn't exist.
+
+    A freshly generated key is written owner-read/write only (0o600): it is
+    an unencrypted PKCS8 private key, so it must never be group/world-readable.
+    """
     if path.exists():
         return path.read_bytes()
     pem = generate_rsa_keypair_pem(key_size)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(pem)
+    # Create with 0o600 atomically rather than write-then-chmod, so the key is
+    # never briefly readable by other users between creation and the chmod.
+    fd = os.open(path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
+    try:
+        os.write(fd, pem)
+    finally:
+        os.close(fd)
     return pem

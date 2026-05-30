@@ -102,11 +102,13 @@ class DeviceCodeGrant(GrantStrategy):
             await self._device_codes.save(code.mark_polled(now))
             raise AuthorizationPending("user has not yet approved")
 
-        # Approved — issue tokens. Code remains in store (not consumed)
-        # because subsequent polls after a success would naturally be
-        # client errors; RFC 8628 § 3.5 does not mandate single-use here
-        # the way RFC 6749 § 4.1.2 does for authorization_code.
+        # Approved — issue tokens exactly once. A device code is a bearer
+        # grant: replaying it after a successful exchange would amplify
+        # one user approval into unlimited token issuance, so we enforce
+        # single-use (same intent as RFC 6749 § 4.1.2 for authz codes).
         assert code.user_sub is not None
+        if code.is_redeemed():
+            raise InvalidGrant("device code already redeemed")
 
         issued_access = await self._token_issuer.issue(
             subject=code.user_sub,
@@ -129,6 +131,9 @@ class DeviceCodeGrant(GrantStrategy):
             )
             await self._refresh_tokens.save(refresh)
             refresh_token_value = refresh.value
+
+        # Mark single-use so re-polling after success fails with invalid_grant.
+        await self._device_codes.save(code.redeem(now))
 
         return TokenIssuanceResult(
             access_token=issued_access.value,

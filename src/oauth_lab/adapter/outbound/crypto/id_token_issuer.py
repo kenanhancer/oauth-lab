@@ -66,7 +66,7 @@ class JwtIdTokenIssuer:
         if nonce is not None:
             claims["nonce"] = nonce
         if access_token is not None:
-            claims["at_hash"] = _compute_at_hash(access_token)
+            claims["at_hash"] = _compute_at_hash(access_token, self._algorithm)
 
         return jwt.encode(
             claims,
@@ -76,8 +76,22 @@ class JwtIdTokenIssuer:
         )
 
 
-def _compute_at_hash(access_token: str) -> str:
-    """OIDC Core § 3.1.3.6 — base64url(left-half(SHA-256(access_token)))."""
-    digest = hashlib.sha256(access_token.encode("ascii")).digest()
+# OIDC Core § 3.1.3.6: the at_hash digest is the hash used by the id_token's
+# signing algorithm — SHA-256 for *256 algs, SHA-384 for *384, SHA-512 for *512.
+_AT_HASH_DIGEST: dict[str, str] = {
+    "RS256": "sha256", "ES256": "sha256", "PS256": "sha256",
+    "RS384": "sha384", "ES384": "sha384", "PS384": "sha384",
+    "RS512": "sha512", "ES512": "sha512", "PS512": "sha512",
+}
+
+
+def _compute_at_hash(access_token: str, algorithm: str) -> str:
+    """OIDC Core § 3.1.3.6 — base64url(left-half(H(access_token))).
+
+    H is the hash function paired with the id_token signing `algorithm`
+    (e.g. RS384 → SHA-384), not always SHA-256.
+    """
+    digest_name = _AT_HASH_DIGEST[algorithm]
+    digest = hashlib.new(digest_name, access_token.encode("ascii")).digest()
     half = digest[: len(digest) // 2]
     return base64.urlsafe_b64encode(half).rstrip(b"=").decode("ascii")

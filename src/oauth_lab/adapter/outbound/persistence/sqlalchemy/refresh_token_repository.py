@@ -8,9 +8,10 @@ concurrent rotations.
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any, cast
 
-from sqlalchemy import select, update
-from sqlalchemy.ext.asyncio import async_sessionmaker
+from sqlalchemy import CursorResult, select, update
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from oauth_lab.adapter.outbound.persistence.orm.models import RefreshTokenRow
 from oauth_lab.domain.model.client_id import ClientId
@@ -20,7 +21,7 @@ from oauth_lab.domain.model.scope import Scope, ScopeSet
 
 
 class SqlAlchemyRefreshTokenRepository:
-    def __init__(self, session_factory: async_sessionmaker) -> None:
+    def __init__(self, session_factory: async_sessionmaker[AsyncSession]) -> None:
         self._session_factory = session_factory
 
     async def save(self, token: RefreshToken) -> None:
@@ -52,7 +53,7 @@ class SqlAlchemyRefreshTokenRepository:
                 )
                 .values(consumed_at=now)
             )
-            result = await session.execute(stmt)
+            result = cast("CursorResult[Any]", await session.execute(stmt))
             if result.rowcount == 0:
                 old = await session.scalar(
                     select(RefreshTokenRow).where(RefreshTokenRow.value == old_value)
@@ -77,9 +78,9 @@ class SqlAlchemyRefreshTokenRepository:
                 )
                 .values(consumed_at=now)
             )
-            result = await session.execute(stmt)
+            result = cast("CursorResult[Any]", await session.execute(stmt))
             await session.commit()
-            return result.rowcount
+            return int(result.rowcount)
 
 
 def _to_domain(row: RefreshTokenRow) -> RefreshToken:

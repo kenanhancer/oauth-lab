@@ -19,6 +19,8 @@ Location: `tests/integration/device_flow/` — folder name carries the scenario.
 
 from __future__ import annotations
 
+import re
+
 from httpx import AsyncClient
 
 from tests.conftest import (
@@ -26,6 +28,13 @@ from tests.conftest import (
     DEMO_USER_PASSWORD,
     DEMO_USERNAME,
 )
+
+
+def _csrf(html: str) -> str:
+    """Scrape the synchronizer CSRF token rendered into the device-consent page."""
+    match = re.search(r'name="csrf_token" value="([^"]+)"', html)
+    assert match, "csrf_token hidden field not found in rendered page"
+    return match.group(1)
 
 
 async def _start_device_flow(http_client: AsyncClient) -> dict:
@@ -111,11 +120,12 @@ class TestDevicePolling:
         assert consent_page.status_code == 200
         assert user_code in consent_page.text
         assert DEMO_DEVICE_CLIENT_ID in consent_page.text
+        csrf = _csrf(consent_page.text)
 
         # 5. User clicks Approve
         consent_post = await http_client.post(
             "/device/consent",
-            data={"user_code": user_code, "decision": "approve"},
+            data={"user_code": user_code, "decision": "approve", "csrf_token": csrf},
             cookies={"oauth_lab_session": session},
         )
         assert consent_post.status_code == 200
@@ -186,10 +196,16 @@ class TestDevicePolling:
         )
         session = login.cookies["oauth_lab_session"]
 
-        # User denies
+        # User opens the verification page (to obtain the CSRF token), then denies
+        consent_page = await http_client.post(
+            "/device",
+            data={"user_code": user_code},
+            cookies={"oauth_lab_session": session},
+        )
+        csrf = _csrf(consent_page.text)
         await http_client.post(
             "/device/consent",
-            data={"user_code": user_code, "decision": "deny"},
+            data={"user_code": user_code, "decision": "deny", "csrf_token": csrf},
             cookies={"oauth_lab_session": session},
         )
 

@@ -10,8 +10,9 @@ Verifies, in this order:
 1. JWS signature (algorithm pinned to the trusted-issuer record;
    prevents `alg=none` and `HS256` confusion attacks).
 2. `exp` claim must be present and in the future.
-3. `aud` claim must contain `expected_audience` (the AS token endpoint
-   URL or another registered audience for the trusted issuer).
+3. `aud` claim must match `expected_audience` (the AS token endpoint
+   URL) OR any audience the trusted issuer was registered with
+   (`allowed_audiences`) — a list is "match ANY".
 4. `iat` and `nbf` validated by PyJWT if present (`require=["exp"]`).
 
 The verifier does NOT enforce `iss` / `sub` shape — those belong to
@@ -38,12 +39,18 @@ class PyJwtAssertionVerifier:
         trusted_issuer: TrustedAssertionIssuer,
         expected_audience: str,
     ) -> AssertionClaims:
+        # RFC 7523 §3 item 3: the assertion `aud` must identify the AS. We
+        # accept the token endpoint URL (`expected_audience`) OR any audience
+        # the trusted issuer was registered with. PyJWT treats a list as
+        # "match ANY", so a single jwt.decode enforces the full registered
+        # set without re-implementing audience comparison.
+        accepted_audiences = [expected_audience, *trusted_issuer.allowed_audiences]
         try:
             decoded = jwt.decode(
                 assertion,
                 key=trusted_issuer.public_key_pem,
                 algorithms=[trusted_issuer.algorithm],
-                audience=expected_audience,
+                audience=accepted_audiences,
                 issuer=trusted_issuer.issuer,
                 options={"require": ["exp", "iss", "sub", "aud"]},
             )

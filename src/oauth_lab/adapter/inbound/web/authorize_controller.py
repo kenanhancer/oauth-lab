@@ -43,13 +43,6 @@ async def authorize(
     request: Request,
     *,
     use_case: Annotated[AuthorizeUseCase, Depends(_use_case)],
-    response_type: Annotated[str | None, "Query"] = None,
-    client_id: Annotated[str | None, "Query"] = None,
-    redirect_uri: Annotated[str | None, "Query"] = None,
-    scope: Annotated[str | None, "Query"] = None,
-    state: Annotated[str | None, "Query"] = None,
-    code_challenge: Annotated[str | None, "Query"] = None,
-    code_challenge_method: Annotated[str | None, "Query"] = None,
     session_cookie: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
 ) -> Response:
     qp = request.query_params
@@ -84,6 +77,7 @@ async def authorize(
             state=result.state,
             code_challenge_value=result.code_challenge.value,
             code_challenge_method=result.code_challenge.method,
+            csrf_token=result.csrf_token,
         )
         return HTMLResponse(content=html, status_code=200)
 

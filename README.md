@@ -200,20 +200,40 @@ tests/
 │   ├── shared/                             # scenario-agnostic — value objects, CLI
 │   │   ├── test_scope.py
 │   │   └── test_cli_seed.py
-│   ├── m2m_flow/                           # ✅ implemented
+│   ├── m2m_flow/                           # ✅ implemented (client_credentials)
 │   │   └── test_client_credentials_grant.py
-│   ├── browser_flow/                       # ⏳ placeholder for next grant
-│   ├── device_flow/                        # ⏳
-│   ├── federation/                         # ⏳
-│   └── delegation/                         # ⏳
+│   ├── browser_flow/                       # ✅ implemented (authorization_code + PKCE, refresh)
+│   │   ├── test_authorization_code.py
+│   │   ├── test_pkce.py
+│   │   └── test_refresh_token.py
+│   ├── device_flow/                        # ✅ implemented (device_code)
+│   │   ├── test_device_code.py
+│   │   └── test_device_code_grant.py
+│   ├── jwt_bearer_flow/                    # ✅ implemented (federation — jwt-bearer)
+│   │   └── test_jwt_bearer_grant.py
+│   └── token_exchange_flow/                # ✅ implemented (delegation — token-exchange)
+│       └── test_token_exchange_grant.py
 └── integration/
     ├── m2m_flow/                           # ✅ implemented
     │   └── test_token_client_credentials.py
-    ├── browser_flow/                       # ⏳
-    ├── device_flow/                        # ⏳
-    ├── federation/                         # ⏳
-    └── delegation/                         # ⏳
+    ├── browser_flow/                       # ✅ implemented
+    │   ├── test_discovery.py
+    │   ├── test_full_flow.py
+    │   ├── test_jwks_and_jwt.py
+    │   ├── test_oidc.py
+    │   ├── test_refresh_token_rotation.py
+    │   └── test_token_authorization_code.py
+    ├── device_flow/                        # ✅ implemented
+    │   └── test_full_device_flow.py
+    ├── jwt_bearer_flow/                    # ✅ implemented
+    │   └── test_jwt_bearer.py
+    └── token_exchange_flow/                # ✅ implemented
+        └── test_token_exchange.py
 ```
+
+The `federation` and `delegation` names live on as pytest markers (see below);
+the test folders that realize those scenarios are `jwt_bearer_flow`
+(RFC 7523 `jwt-bearer`) and `token_exchange_flow` (RFC 8693 `token-exchange`).
 
 Reading any path tells you everything: `tests/integration/m2m_flow/test_token_client_credentials.py` ⇒ integration test, M2M scenario, exercises `/token` with `client_credentials`.
 
@@ -233,13 +253,19 @@ The same five names are also defined as pytest markers in `pyproject.toml` — t
 ### Running by scenario
 
 ```bash
-just test                  # everything (23 tests today)
-just test-m2m              # only the M2M scenario (11 tests today)
-just test-shared           # only the scenario-agnostic tests (12 today)
-just test-browser          # 0 today — `authorization_code` not implemented yet
-just test-unit             # all unit tests (any scenario)
-just test-integration      # all integration tests
+just test                  # everything (158 tests today)
+just test-m2m              # M2M scenario — client_credentials (11 tests)
+just test-browser          # browser scenario — authorization_code + PKCE, refresh (75 tests)
+just test-device           # device scenario — device_code (25 tests)
+just test-shared           # scenario-agnostic tests — value objects, CLI (13 tests)
+just test-unit             # all unit tests (any scenario) — 93 today
+just test-integration      # all integration tests — 65 today
 ```
+
+The `federation` and `delegation` grants are implemented and tested under the
+`jwt_bearer_flow` (16 tests) and `token_exchange_flow` (18 tests) folders. Run
+them directly, e.g. `just test-unit` / `just test-integration`, or point pytest
+at those paths.
 
 ## Storage adapters
 
@@ -266,7 +292,18 @@ After editing `../oauth-openapi/oauth-openapi.yaml`:
 just gen
 ```
 
-Generated code lives in `src/openapi_server/`; our code lives in
-`src/oauth_lab/`. The generated routers are not mounted (their security
-stubs are incomplete) — we implement each endpoint ourselves under
-`src/oauth_lab/adapter/inbound/{rest,web}/`.
+This regenerates `src/openapi_server/` from the spec. **That package is a
+throwaway reference, not part of the shipped application.** It is:
+
+- **Not committed / not shipped** — only `src/oauth_lab/` is packaged into the
+  wheel (see `[tool.hatch.build.targets.wheel]` in `pyproject.toml`). Regenerate
+  it on demand; never depend on it.
+- **Not mounted** — `oauth_lab.main` never imports it. The generated routers'
+  security stubs are incomplete, so we implement every endpoint ourselves under
+  `src/oauth_lab/adapter/inbound/{rest,web}/`.
+- **Possibly import-broken until regenerated** — the `python-fastapi` generator
+  emits model files with invalid imports (e.g. `from openapi_server.models.object
+  import object`) and a duplicated security dependency. It exists to read
+  alongside our hand-written handlers as a reference, not to run.
+
+Our real, runnable code lives entirely in `src/oauth_lab/`.
