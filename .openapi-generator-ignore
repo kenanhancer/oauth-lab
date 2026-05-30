@@ -1,0 +1,25 @@
+# Files preserved across generator runs. Anything matched here is NEVER
+# overwritten by `just gen`.
+
+# Project metadata we own
+README.md
+pyproject.toml
+requirements.txt
+setup.cfg
+.flake8
+.gitignore
+Dockerfile
+docker-compose.yaml
+Justfile
+.env.example
+.python-version
+
+# Generator-produced tests are throwaway — we maintain our own
+tests/**
+
+# Our application code — everything outside the generated openapi_server/ pkg
+src/oauth_lab/**
+
+# Generated impl/ directory we don't use (we have our own handlers under
+# src/oauth_lab/api/handlers/)
+src/openapi_server/impl/**

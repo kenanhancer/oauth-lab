@@ -1,0 +1,112 @@
+"""`GET /authorize` — entry point of the browser flow.
+
+Dispatches `AuthorizeUseCase` results to one of four HTTP responses:
+- `AuthorizeRedirectToLogin` → 303 to `/login?next=<authorize_url>`
+- `AuthorizeShowConsent` → 200 HTML consent page
+- `AuthorizeRenderError` → 400 HTML error page (RFC 6749 §4.1.2.1)
+- `AuthorizeRedirectError` → 303 to client redirect_uri with error params
+"""
+
+from __future__ import annotations
+
+from typing import Annotated
+from urllib.parse import quote_plus, urlencode
+
+from fastapi import APIRouter, Cookie, Depends, Request
+from fastapi.responses import HTMLResponse, RedirectResponse, Response
+
+from oauth_lab.application.port.inbound.authorize_use_case import AuthorizeUseCase
+from oauth_lab.application.service.authorize_service import (
+    AuthorizeRedirectError,
+    AuthorizeRedirectToLogin,
+    AuthorizeRenderError,
+    AuthorizeRequest,
+    AuthorizeShowConsent,
+)
+from oauth_lab.container import Container
+
+SESSION_COOKIE_NAME = "oauth_lab_session"
+
+router = APIRouter()
+
+
+def _container(request: Request) -> Container:
+    return request.app.state.container                                              # type: ignore[no-any-return]
+
+
+def _use_case(container: Annotated[Container, Depends(_container)]) -> AuthorizeUseCase:
+    return container.authorize
+
+
+@router.get("/authorize", tags=["Browser"])
+async def authorize(
+    request: Request,
+    *,
+    use_case: Annotated[AuthorizeUseCase, Depends(_use_case)],
+    response_type: Annotated[str | None, "Query"] = None,
+    client_id: Annotated[str | None, "Query"] = None,
+    redirect_uri: Annotated[str | None, "Query"] = None,
+    scope: Annotated[str | None, "Query"] = None,
+    state: Annotated[str | None, "Query"] = None,
+    code_challenge: Annotated[str | None, "Query"] = None,
+    code_challenge_method: Annotated[str | None, "Query"] = None,
+    session_cookie: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
+) -> Response:
+    qp = request.query_params
+    result = await use_case.execute(
+        request=AuthorizeRequest(
+            response_type=qp.get("response_type"),
+            client_id=qp.get("client_id"),
+            redirect_uri=qp.get("redirect_uri"),
+            scope=qp.get("scope"),
+            state=qp.get("state"),
+            code_challenge=qp.get("code_challenge"),
+            code_challenge_method=qp.get("code_challenge_method"),
+        ),
+        session_cookie=session_cookie,
+        full_request_url=str(request.url),
+    )
+
+    container: Container = request.app.state.container
+
+    if isinstance(result, AuthorizeRedirectToLogin):
+        next_url = quote_plus(result.next_authorize_url)
+        return RedirectResponse(url=f"/login?next={next_url}", status_code=303)
+
+    if isinstance(result, AuthorizeShowConsent):
+        html = container.templates.render(
+            "consent.html",
+            client_id=str(result.client.id),
+            username=result.user.username,
+            requested_scopes=sorted(s.value for s in result.requested_scope.scopes),
+            scope_str=result.requested_scope.to_str(),
+            redirect_uri=result.redirect_uri,
+            state=result.state,
+            code_challenge_value=result.code_challenge.value,
+            code_challenge_method=result.code_challenge.method,
+        )
+        return HTMLResponse(content=html, status_code=200)
+
+    if isinstance(result, AuthorizeRenderError):
+        html = container.templates.render(
+            "error.html",
+            error_code=result.error_code,
+            description=result.description,
+        )
+        return HTMLResponse(content=html, status_code=400)
+
+    if isinstance(result, AuthorizeRedirectError):
+        params: dict[str, str] = {
+            "error": result.error,
+            "error_description": result.error_description,
+            "iss": container.settings.issuer,                                # RFC 9207
+        }
+        if result.state:
+            params["state"] = result.state
+        sep = "&" if "?" in result.redirect_uri else "?"
+        return RedirectResponse(
+            url=result.redirect_uri + sep + urlencode(params),
+            status_code=303,
+        )
+
+    raise AssertionError(f"unhandled AuthorizeResult variant: {type(result).__name__}")

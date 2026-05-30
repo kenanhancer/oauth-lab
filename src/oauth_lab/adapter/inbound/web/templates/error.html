@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block title %}Error &mdash; oauth-lab{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3 text-danger">Authorization error</h1>
+<p><strong><code>{{ error_code }}</code></strong></p>
+<p class="text-muted">{{ description }}</p>
+{% endblock %}

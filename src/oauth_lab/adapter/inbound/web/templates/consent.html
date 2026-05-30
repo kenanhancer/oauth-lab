@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Authorize &mdash; oauth-lab{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Authorize <code>{{ client_id }}</code></h1>
+<p class="text-muted">Signed in as <strong>{{ username }}</strong></p>
+<p>The application is requesting access to:</p>
+<ul class="list-group mb-4">
+{% for scope in requested_scopes %}
+    <li class="list-group-item"><code>{{ scope }}</code></li>
+{% endfor %}
+</ul>
+<form method="post" action="/consent">
+    <input type="hidden" name="client_id" value="{{ client_id }}">
+    <input type="hidden" name="redirect_uri" value="{{ redirect_uri }}">
+    <input type="hidden" name="scope" value="{{ scope_str }}">
+    <input type="hidden" name="state" value="{{ state or '' }}">
+    <input type="hidden" name="code_challenge" value="{{ code_challenge_value }}">
+    <input type="hidden" name="code_challenge_method" value="{{ code_challenge_method }}">
+    <button type="submit" name="decision" value="approve"
+            class="btn btn-primary w-100 mb-2">Approve</button>
+    <button type="submit" name="decision" value="deny"
+            class="btn btn-outline-secondary w-100">Deny</button>
+</form>
+{% endblock %}

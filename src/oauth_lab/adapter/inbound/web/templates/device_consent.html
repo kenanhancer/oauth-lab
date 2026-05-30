@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Authorize device &mdash; oauth-lab{% endblock %}
+{% block content %}
+<h1 class="h4 mb-3">Authorize device <code>{{ user_code }}</code></h1>
+<p>Application <code>{{ client_id }}</code> is requesting access to:</p>
+<ul class="list-group mb-4">
+{% for scope in requested_scopes %}
+    <li class="list-group-item"><code>{{ scope }}</code></li>
+{% endfor %}
+</ul>
+<form method="post" action="/device/consent">
+    <input type="hidden" name="user_code" value="{{ user_code }}">
+    <button type="submit" name="decision" value="approve"
+            class="btn btn-primary w-100 mb-2">Approve</button>
+    <button type="submit" name="decision" value="deny"
+            class="btn btn-outline-secondary w-100">Deny</button>
+</form>
+{% endblock %}
