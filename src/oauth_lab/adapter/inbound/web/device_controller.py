@@ -13,7 +13,6 @@ user comes back with the code intact.
 
 from __future__ import annotations
 
-import secrets
 from collections.abc import Callable
 from typing import Annotated
 from urllib.parse import quote_plus
@@ -22,6 +21,7 @@ from fastapi import APIRouter, Cookie, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from oauth_lab.adapter.inbound.web.session_constants import SESSION_COOKIE_NAME
+from oauth_lab.adapter.inbound.web.session_guard import require_session_with_csrf
 from oauth_lab.adapter.inbound.web.template_renderer import TemplateRenderer
 from oauth_lab.application.port.inbound.device_consent_use_case import (
     DeviceConsentDecision,
@@ -31,7 +31,6 @@ from oauth_lab.application.port.inbound.lookup_device_code_use_case import (
     LookupDeviceCodeUseCase,
 )
 from oauth_lab.application.port.outbound.session_signer import SessionSigner
-from oauth_lab.domain.model.errors import InvalidRequest
 
 
 def build_router(
@@ -133,12 +132,13 @@ def build_router(
         csrf_token: Annotated[str, Form()] = "",
         session_cookie: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
     ) -> Response:
-        session = session_signer().verify(session_cookie)
-        if session is None:
-            return RedirectResponse(url="/login", status_code=303)
-
-        if not secrets.compare_digest(csrf_token, session.csrf_token):
-            raise InvalidRequest("CSRF token mismatch")
+        session = require_session_with_csrf(
+            session_signer=session_signer(),
+            session_cookie=session_cookie,
+            csrf_token=csrf_token,
+        )
+        if isinstance(session, Response):
+            return session
 
         await device_consent().execute(
             DeviceConsentDecision(

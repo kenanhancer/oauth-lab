@@ -11,7 +11,6 @@ raises `InvalidRequest` (RFC 6749 §5.2 `invalid_request`).
 
 from __future__ import annotations
 
-import secrets
 from collections.abc import Callable
 from typing import Annotated
 
@@ -22,13 +21,13 @@ from oauth_lab.adapter.inbound.web.authorization_response import (
     encode_authorization_response,
 )
 from oauth_lab.adapter.inbound.web.session_constants import SESSION_COOKIE_NAME
+from oauth_lab.adapter.inbound.web.session_guard import require_session_with_csrf
 from oauth_lab.application.port.inbound.consent_use_case import (
     ConsentDecision,
     ConsentDenied,
     ConsentUseCase,
 )
 from oauth_lab.application.port.outbound.session_signer import SessionSigner
-from oauth_lab.domain.model.errors import InvalidRequest
 
 
 def build_router(
@@ -55,13 +54,13 @@ def build_router(
         code_challenge: Annotated[str, Form()] = "",
         code_challenge_method: Annotated[str, Form()] = "S256",
     ) -> Response:
-        session = session_signer().verify(session_cookie)
-        if session is None:
-            # No valid session — start the flow again.
-            return RedirectResponse(url="/login", status_code=303)
-
-        if not secrets.compare_digest(csrf_token, session.csrf_token):
-            raise InvalidRequest("CSRF token mismatch")
+        session = require_session_with_csrf(
+            session_signer=session_signer(),
+            session_cookie=session_cookie,
+            csrf_token=csrf_token,
+        )
+        if isinstance(session, Response):
+            return session
 
         result = await consent().execute(
             ConsentDecision(

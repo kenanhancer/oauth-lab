@@ -128,16 +128,18 @@ def trusted_issuers(
     jwt_bearer_keypair: tuple[bytes, bytes],
 ) -> InMemoryTrustedAssertionIssuerRepository:
     _private_pem, public_pem = jwt_bearer_keypair
-    repo = InMemoryTrustedAssertionIssuerRepository()
-    # Seed synchronously by writing to the internal dict — the test event
-    # loop isn't running yet at fixture collection time.
-    repo._by_iss[DEMO_TRUSTED_ISSUER] = TrustedAssertionIssuer(
-        issuer=DEMO_TRUSTED_ISSUER,
-        public_key_pem=public_pem,
-        algorithm="RS256",
-        allowed_audiences=frozenset({DEMO_TOKEN_AUDIENCE}),
+    # Seed via the constructor — the test event loop isn't running yet at
+    # fixture collection time, so the async `save` isn't available.
+    return InMemoryTrustedAssertionIssuerRepository(
+        initial=[
+            TrustedAssertionIssuer(
+                issuer=DEMO_TRUSTED_ISSUER,
+                public_key_pem=public_pem,
+                algorithm="RS256",
+                allowed_audiences=frozenset({DEMO_TOKEN_AUDIENCE}),
+            )
+        ]
     )
-    return repo
 
 
 @pytest.fixture
