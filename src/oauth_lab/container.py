@@ -28,6 +28,7 @@ from oauth_lab.adapter.outbound.crypto.jwt_subject_token_validator import (
     JwtSubjectTokenValidator,
 )
 from oauth_lab.adapter.outbound.crypto.key_generator import (
+    RsaKeyPairGenerator,
     generate_rsa_keypair_pem,
     load_or_create_keypair,
     public_key_pem_from_private,
@@ -107,6 +108,7 @@ from oauth_lab.application.port.outbound.client_repository import ClientReposito
 from oauth_lab.application.port.outbound.device_code_repository import DeviceCodeRepository
 from oauth_lab.application.port.outbound.id_token_issuer import IdTokenIssuer
 from oauth_lab.application.port.outbound.jwks_provider import JwksProvider
+from oauth_lab.application.port.outbound.key_pair_generator import KeyPairGenerator
 from oauth_lab.application.port.outbound.refresh_token_repository import RefreshTokenRepository
 from oauth_lab.application.port.outbound.secret_hasher import SecretHasher
 from oauth_lab.application.port.outbound.session_signer import SessionSigner
@@ -255,6 +257,7 @@ async def build_container(
     random_source = SecureRandomSource()
     # One shared instance: it precomputes the dummy-verify hash once.
     secret_hasher: SecretHasher = Argon2SecretHasher()
+    key_pair_generator: KeyPairGenerator = RsaKeyPairGenerator()
     user_code_generator: UserCodeGenerator = SecureUserCodeGenerator()
     assertion_verifier: AssertionVerifier = PyJwtAssertionVerifier()
     # subject_token_validator constructed below — needs the signing key
@@ -427,6 +430,7 @@ async def build_container(
         users=repos.users,
         trusted_issuers=repos.trusted_issuers,
         secret_hasher=secret_hasher,
+        key_pair_generator=key_pair_generator,
     )
 
     return Container(

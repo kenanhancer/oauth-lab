@@ -17,6 +17,19 @@ from pathlib import Path
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
 
+from oauth_lab.application.port.outbound.key_pair_generator import KeyPairPem
+
+
+class RsaKeyPairGenerator:
+    """`KeyPairGenerator` port implementation — one fresh RSA keypair per call."""
+
+    def generate(self) -> KeyPairPem:
+        private_pem = generate_rsa_keypair_pem()
+        return KeyPairPem(
+            private_pem=private_pem,
+            public_pem=public_key_pem_from_private(private_pem),
+        )
+
 
 def generate_rsa_keypair_pem(key_size: int = 2048) -> bytes:
     """Generate a fresh RSA private key, return PKCS8 PEM bytes."""

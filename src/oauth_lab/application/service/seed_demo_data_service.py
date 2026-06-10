@@ -12,10 +12,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from oauth_lab.adapter.outbound.crypto.key_generator import (
-    generate_rsa_keypair_pem,
-    public_key_pem_from_private,
-)
 from oauth_lab.application.port.inbound.seed_demo_data_use_case import (
     SeedDemoDataResult,
     SeededClient,
@@ -23,6 +19,7 @@ from oauth_lab.application.port.inbound.seed_demo_data_use_case import (
     SeededUser,
 )
 from oauth_lab.application.port.outbound.client_repository import ClientRepository
+from oauth_lab.application.port.outbound.key_pair_generator import KeyPairGenerator
 from oauth_lab.application.port.outbound.secret_hasher import SecretHasher
 from oauth_lab.application.port.outbound.trusted_assertion_issuer_repository import (
     TrustedAssertionIssuerRepository,
@@ -141,11 +138,13 @@ class SeedDemoDataService:
         users: UserRepository,
         trusted_issuers: TrustedAssertionIssuerRepository,
         secret_hasher: SecretHasher,
+        key_pair_generator: KeyPairGenerator,
     ) -> None:
         self._clients = clients
         self._users = users
         self._trusted_issuers = trusted_issuers
         self._hasher = secret_hasher
+        self._keys = key_pair_generator
 
     async def execute(self) -> SeedDemoDataResult:
         seeded_clients: list[SeededClient] = []
@@ -194,8 +193,9 @@ class SeedDemoDataService:
 
         seeded_issuers: list[SeededTrustedIssuer] = []
         for ti_spec in _DEMO_TRUSTED_ISSUERS:
-            private_pem = generate_rsa_keypair_pem()
-            public_pem = public_key_pem_from_private(private_pem)
+            keypair = self._keys.generate()
+            private_pem = keypair.private_pem
+            public_pem = keypair.public_pem
             trusted = TrustedAssertionIssuer(
                 issuer=ti_spec.issuer,
                 public_key_pem=public_pem,
