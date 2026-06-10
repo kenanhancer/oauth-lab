@@ -14,9 +14,10 @@ same path *before* the generated router, so ours wins.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, Header, Request
+from fastapi import APIRouter, Form, Header
 from fastapi.responses import JSONResponse
 
 from oauth_lab.application.port.inbound.issue_token_use_case import (
@@ -25,7 +26,6 @@ from oauth_lab.application.port.inbound.issue_token_use_case import (
     TokenIssuanceResult,
     TokenRequest,
 )
-from oauth_lab.container import Container
 from oauth_lab.domain.model.errors import InvalidRequest, UnsupportedGrantType
 from oauth_lab.domain.model.grant_type import GrantType
 from oauth_lab.domain.model.scope import ScopeSet
@@ -161,75 +161,71 @@ class CoreHandler:
         )
 
 
-router = APIRouter()
+def build_router(*, issue_token: Callable[[], IssueTokenUseCase]) -> APIRouter:
+    """Mount `POST /token`. `issue_token` is a provider resolved per
+    request so the composition root can wire the container lazily."""
+    router = APIRouter()
 
+    @router.post("/token", tags=["Core"])
+    async def token(
+        *,
+        authorization: Annotated[str | None, Header(alias="Authorization")] = None,
+        grant_type: Annotated[str | None, Form()] = None,
+        client_id: Annotated[str | None, Form()] = None,
+        client_secret: Annotated[str | None, Form()] = None,
+        client_assertion: Annotated[str | None, Form()] = None,
+        client_assertion_type: Annotated[str | None, Form()] = None,
+        scope: Annotated[str | None, Form()] = None,
+        audience: Annotated[list[str] | None, Form()] = None,
+        resource: Annotated[list[str] | None, Form()] = None,
+        code: Annotated[str | None, Form()] = None,
+        redirect_uri: Annotated[str | None, Form()] = None,
+        code_verifier: Annotated[str | None, Form()] = None,
+        refresh_token: Annotated[str | None, Form()] = None,
+        device_code: Annotated[str | None, Form()] = None,
+        assertion: Annotated[str | None, Form()] = None,
+        subject_token: Annotated[str | None, Form()] = None,
+        subject_token_type: Annotated[str | None, Form()] = None,
+        actor_token: Annotated[str | None, Form()] = None,
+        actor_token_type: Annotated[str | None, Form()] = None,
+        requested_token_type: Annotated[str | None, Form()] = None,
+    ) -> JSONResponse:
+        handler = CoreHandler(issue_token=issue_token())
+        result = await handler.token(
+            authorization_header=authorization,
+            form_client_id=client_id,
+            form_client_secret=client_secret,
+            form_client_assertion=client_assertion,
+            form_client_assertion_type=client_assertion_type,
+            grant_type=grant_type,
+            scope=scope,
+            audience=audience,
+            resource=resource,
+            code=code,
+            redirect_uri=redirect_uri,
+            code_verifier=code_verifier,
+            refresh_token=refresh_token,
+            device_code=device_code,
+            assertion=assertion,
+            subject_token=subject_token,
+            subject_token_type=subject_token_type,
+            actor_token=actor_token,
+            actor_token_type=actor_token_type,
+            requested_token_type=requested_token_type,
+        )
+        body: dict[str, object] = {
+            "access_token": result.access_token,
+            "token_type": result.token_type,
+            "expires_in": result.expires_in,
+        }
+        if result.scope is not None and not result.scope.is_empty():
+            body["scope"] = result.scope.to_str()
+        if result.refresh_token is not None:
+            body["refresh_token"] = result.refresh_token
+        if result.id_token is not None:
+            body["id_token"] = result.id_token
+        if result.issued_token_type is not None:
+            body["issued_token_type"] = result.issued_token_type
+        return JSONResponse(content=body, headers=_NO_STORE_HEADERS)
 
-def _container(request: Request) -> Container:
-    return request.app.state.container                                              # type: ignore[no-any-return]
-
-
-def _handler(container: Annotated[Container, Depends(_container)]) -> CoreHandler:
-    return CoreHandler(issue_token=container.issue_token)
-
-
-@router.post("/token", tags=["Core"])
-async def token(
-    *,
-    handler: Annotated[CoreHandler, Depends(_handler)],
-    authorization: Annotated[str | None, Header(alias="Authorization")] = None,
-    grant_type: Annotated[str | None, Form()] = None,
-    client_id: Annotated[str | None, Form()] = None,
-    client_secret: Annotated[str | None, Form()] = None,
-    client_assertion: Annotated[str | None, Form()] = None,
-    client_assertion_type: Annotated[str | None, Form()] = None,
-    scope: Annotated[str | None, Form()] = None,
-    audience: Annotated[list[str] | None, Form()] = None,
-    resource: Annotated[list[str] | None, Form()] = None,
-    code: Annotated[str | None, Form()] = None,
-    redirect_uri: Annotated[str | None, Form()] = None,
-    code_verifier: Annotated[str | None, Form()] = None,
-    refresh_token: Annotated[str | None, Form()] = None,
-    device_code: Annotated[str | None, Form()] = None,
-    assertion: Annotated[str | None, Form()] = None,
-    subject_token: Annotated[str | None, Form()] = None,
-    subject_token_type: Annotated[str | None, Form()] = None,
-    actor_token: Annotated[str | None, Form()] = None,
-    actor_token_type: Annotated[str | None, Form()] = None,
-    requested_token_type: Annotated[str | None, Form()] = None,
-) -> JSONResponse:
-    result = await handler.token(
-        authorization_header=authorization,
-        form_client_id=client_id,
-        form_client_secret=client_secret,
-        form_client_assertion=client_assertion,
-        form_client_assertion_type=client_assertion_type,
-        grant_type=grant_type,
-        scope=scope,
-        audience=audience,
-        resource=resource,
-        code=code,
-        redirect_uri=redirect_uri,
-        code_verifier=code_verifier,
-        refresh_token=refresh_token,
-        device_code=device_code,
-        assertion=assertion,
-        subject_token=subject_token,
-        subject_token_type=subject_token_type,
-        actor_token=actor_token,
-        actor_token_type=actor_token_type,
-        requested_token_type=requested_token_type,
-    )
-    body: dict[str, object] = {
-        "access_token": result.access_token,
-        "token_type": result.token_type,
-        "expires_in": result.expires_in,
-    }
-    if result.scope is not None and not result.scope.is_empty():
-        body["scope"] = result.scope.to_str()
-    if result.refresh_token is not None:
-        body["refresh_token"] = result.refresh_token
-    if result.id_token is not None:
-        body["id_token"] = result.id_token
-    if result.issued_token_type is not None:
-        body["issued_token_type"] = result.issued_token_type
-    return JSONResponse(content=body, headers=_NO_STORE_HEADERS)
+    return router

@@ -12,16 +12,15 @@ falls back to "/" otherwise.
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Annotated
 
-from fastapi import APIRouter, Depends, Form, Request
+from fastapi import APIRouter, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from oauth_lab.adapter.inbound.web.authorize_controller import SESSION_COOKIE_NAME
+from oauth_lab.adapter.inbound.web.session_constants import SESSION_COOKIE_NAME
+from oauth_lab.adapter.inbound.web.template_renderer import TemplateRenderer
 from oauth_lab.application.port.inbound.login_use_case import InvalidCredentials, LoginUseCase
-from oauth_lab.container import Container
-
-router = APIRouter()
 
 
 def safe_next(next_url: str | None) -> str:
@@ -37,56 +36,57 @@ def safe_next(next_url: str | None) -> str:
     return next_url
 
 
-def _container(request: Request) -> Container:
-    return request.app.state.container                                              # type: ignore[no-any-return]
-
-
-def _use_case(container: Annotated[Container, Depends(_container)]) -> LoginUseCase:
-    return container.login
-
-
-@router.get("/login", tags=["Browser"])
-async def login_form(request: Request) -> Response:
-    container: Container = request.app.state.container
-    html = container.templates.render(
-        "login.html",
-        next_url=safe_next(request.query_params.get("next")),
-        username=None,
-        error=None,
-    )
-    return HTMLResponse(content=html)
-
-
-@router.post("/login", tags=["Browser"])
-async def login_submit(
-    request: Request,
+def build_router(
     *,
-    use_case: Annotated[LoginUseCase, Depends(_use_case)],
-    username: Annotated[str, Form()],
-    password: Annotated[str, Form()],
-    next: Annotated[str, Form()] = "/",
-) -> Response:
-    container: Container = request.app.state.container
-    target = safe_next(next)
-    try:
-        cookie_value = await use_case.execute(username=username, password=password)
-    except InvalidCredentials:
-        html = container.templates.render(
-            "login.html",
-            next_url=target,
-            username=username,
-            error="Invalid username or password.",
-        )
-        return HTMLResponse(content=html, status_code=401)
+    login: Callable[[], LoginUseCase],
+    templates: TemplateRenderer,
+    cookie_secure: bool,
+    cookie_max_age_seconds: int,
+) -> APIRouter:
+    """Mount `GET/POST /login`. `login` is a provider resolved per request so
+    the composition root can wire the container lazily; the cookie parameters
+    are composition-time config (secure flag derived from the issuer scheme)."""
+    router = APIRouter()
 
-    response = RedirectResponse(url=target, status_code=303)
-    response.set_cookie(
-        key=SESSION_COOKIE_NAME,
-        value=cookie_value,
-        httponly=True,
-        samesite="lax",
-        # Secure in prod (https issuer) but still usable on localhost http.
-        secure=container.settings.issuer.startswith("https"),
-        max_age=container.settings.session_ttl_seconds,
-    )
-    return response
+    @router.get("/login", tags=["Browser"])
+    async def login_form(request: Request) -> Response:
+        html = templates.render(
+            "login.html",
+            next_url=safe_next(request.query_params.get("next")),
+            username=None,
+            error=None,
+        )
+        return HTMLResponse(content=html)
+
+    @router.post("/login", tags=["Browser"])
+    async def login_submit(
+        *,
+        username: Annotated[str, Form()],
+        password: Annotated[str, Form()],
+        next: Annotated[str, Form()] = "/",
+    ) -> Response:
+        target = safe_next(next)
+        try:
+            cookie_value = await login().execute(username=username, password=password)
+        except InvalidCredentials:
+            html = templates.render(
+                "login.html",
+                next_url=target,
+                username=username,
+                error="Invalid username or password.",
+            )
+            return HTMLResponse(content=html, status_code=401)
+
+        response = RedirectResponse(url=target, status_code=303)
+        response.set_cookie(
+            key=SESSION_COOKIE_NAME,
+            value=cookie_value,
+            httponly=True,
+            samesite="lax",
+            # Secure in prod (https issuer) but still usable on localhost http.
+            secure=cookie_secure,
+            max_age=cookie_max_age_seconds,
+        )
+        return response
+
+    return router

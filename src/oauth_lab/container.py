@@ -1,8 +1,9 @@
 """Composition root — wires every port to its adapter.
 
 Called once at startup (`main.py` lifespan). Returns a `Container` with
-everything already constructed; the API layer pulls services from it via
-FastAPI's `Depends`. No service locator, no globals — explicit DI.
+everything already constructed; `main.py` hands each inbound router a
+provider for exactly the ports it drives. No service locator, no
+globals — explicit DI.
 
 Type annotations are PORTS (Protocols); assigned values are ADAPTERS
 (concrete classes). This is canonical Hexagonal: the container is the
@@ -13,12 +14,8 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
-from pathlib import Path
 
 from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
-
-# Adapter — inbound (driving) helpers
-from oauth_lab.adapter.inbound.web.template_renderer import TemplateRenderer
 
 # Adapter — outbound (driven) implementations
 from oauth_lab.adapter.outbound.crypto.argon2_secret_hasher import Argon2SecretHasher
@@ -161,8 +158,6 @@ from oauth_lab.config import Settings
 from oauth_lab.domain.service.pkce_verifier import PKCEVerifier
 from oauth_lab.domain.service.scope_validator import ScopeValidator
 
-_TEMPLATES_DIR = Path(__file__).parent / "adapter" / "inbound" / "web" / "templates"
-
 _logger = logging.getLogger("oauth_lab")
 
 _DEV_SESSION_SECRET = "dev-only-change-me"                 # noqa: S105 — matches Settings default (not a real secret)
@@ -228,13 +223,6 @@ class Container:
     server_metadata: GetServerMetadataUseCase
     seed_demo_data: SeedDemoDataUseCase
 
-    # Inbound-adapter shared tooling (not port-abstracted — only used by adapter/in/web/)
-    templates: TemplateRenderer
-
-    # Composition detail (exposed for adapter/out/crypto consumers)
-    signing_key_pem: bytes
-    signing_kid: str
-
 
 @dataclass(slots=True)
 class _Repositories:
@@ -286,8 +274,6 @@ async def build_container(
         secret_key=settings.session_secret_key,
         ttl_seconds=settings.session_ttl_seconds,
     )
-
-    templates = TemplateRenderer(_TEMPLATES_DIR)
 
     # Always provide a signing key (used by JWT access tokens AND id_tokens).
     if settings.jwt_private_key_path is not None:
@@ -483,9 +469,6 @@ async def build_container(
         get_user_info=get_user_info,
         server_metadata=server_metadata,
         seed_demo_data=seed_demo_data,
-        templates=templates,
-        signing_key_pem=signing_key_pem,
-        signing_kid=signing_kid,
     )
 
 

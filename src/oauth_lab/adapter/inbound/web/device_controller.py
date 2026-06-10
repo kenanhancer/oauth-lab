@@ -14,13 +14,15 @@ user comes back with the code intact.
 from __future__ import annotations
 
 import secrets
+from collections.abc import Callable
 from typing import Annotated
 from urllib.parse import quote_plus
 
-from fastapi import APIRouter, Cookie, Depends, Form, Request
+from fastapi import APIRouter, Cookie, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from oauth_lab.adapter.inbound.web.authorize_controller import SESSION_COOKIE_NAME
+from oauth_lab.adapter.inbound.web.session_constants import SESSION_COOKIE_NAME
+from oauth_lab.adapter.inbound.web.template_renderer import TemplateRenderer
 from oauth_lab.application.port.inbound.device_consent_use_case import (
     DeviceConsentDecision,
     DeviceConsentUseCase,
@@ -29,158 +31,124 @@ from oauth_lab.application.port.inbound.lookup_device_code_use_case import (
     LookupDeviceCodeUseCase,
 )
 from oauth_lab.application.port.outbound.session_signer import SessionSigner
-from oauth_lab.container import Container
 from oauth_lab.domain.model.errors import InvalidRequest
 
-router = APIRouter()
 
-
-def _container(request: Request) -> Container:
-    return request.app.state.container                                              # type: ignore[no-any-return]
-
-
-def _lookup_use_case(
-    container: Annotated[Container, Depends(_container)],
-) -> LookupDeviceCodeUseCase:
-    return container.lookup_device_code
-
-
-def _consent_use_case(
-    container: Annotated[Container, Depends(_container)],
-) -> DeviceConsentUseCase:
-    return container.device_consent
-
-
-def _session_signer(
-    container: Annotated[Container, Depends(_container)],
-) -> SessionSigner:
-    return container.session_signer
-
-
-async def _render_device_page(
-    request: Request,
+def build_router(
     *,
-    user_code: str | None,
-    session_cookie: str | None,
-    lookup: LookupDeviceCodeUseCase,
-    signer: SessionSigner,
-    error: str | None = None,
-) -> Response:
-    container: Container = request.app.state.container
+    lookup_device_code: Callable[[], LookupDeviceCodeUseCase],
+    device_consent: Callable[[], DeviceConsentUseCase],
+    session_signer: Callable[[], SessionSigner],
+    templates: TemplateRenderer,
+) -> APIRouter:
+    """Mount the `/device` browser endpoints. The use cases and signer are
+    providers resolved per request so the composition root can wire the
+    container lazily."""
+    router = APIRouter()
 
-    if not user_code:
-        html = container.templates.render(
-            "device_entry.html",
-            user_code=None,
-            error=error,
+    async def _render_device_page(
+        *,
+        user_code: str | None,
+        session_cookie: str | None,
+        error: str | None = None,
+    ) -> Response:
+        if not user_code:
+            html = templates.render(
+                "device_entry.html",
+                user_code=None,
+                error=error,
+            )
+            return HTMLResponse(content=html)
+
+        view = await lookup_device_code().execute(user_code)
+        if view is None:
+            html = templates.render(
+                "device_entry.html",
+                user_code=user_code,
+                error="Unknown code. Check your device's screen and try again.",
+            )
+            return HTMLResponse(content=html, status_code=404)
+
+        if view.expired:
+            html = templates.render(
+                "error.html",
+                error_code="expired_token",
+                description="This device code has expired. Ask the device to start over.",
+            )
+            return HTMLResponse(content=html, status_code=400)
+
+        if view.already_decided:
+            html = templates.render(
+                "error.html",
+                error_code="already_decided",
+                description="This device code has already been approved or denied.",
+            )
+            return HTMLResponse(content=html, status_code=400)
+
+        # Need a logged-in user to grant consent.
+        session = session_signer().verify(session_cookie)
+        if session is None:
+            next_url = "/device?user_code=" + quote_plus(view.user_code)
+            return RedirectResponse(
+                url="/login?next=" + quote_plus(next_url), status_code=303
+            )
+
+        html = templates.render(
+            "device_consent.html",
+            user_code=view.user_code,
+            client_id=view.client_id,
+            requested_scopes=list(view.requested_scopes),
+            csrf_token=session.csrf_token,
         )
         return HTMLResponse(content=html)
 
-    view = await lookup.execute(user_code)
-    if view is None:
-        html = container.templates.render(
-            "device_entry.html",
+    @router.get("/device", tags=["Device Flow"])
+    async def device_get(
+        request: Request,
+        *,
+        session_cookie: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
+    ) -> Response:
+        user_code = request.query_params.get("user_code")
+        return await _render_device_page(
             user_code=user_code,
-            error="Unknown code. Check your device's screen and try again.",
-        )
-        return HTMLResponse(content=html, status_code=404)
-
-    if view.expired:
-        html = container.templates.render(
-            "error.html",
-            error_code="expired_token",
-            description="This device code has expired. Ask the device to start over.",
-        )
-        return HTMLResponse(content=html, status_code=400)
-
-    if view.already_decided:
-        html = container.templates.render(
-            "error.html",
-            error_code="already_decided",
-            description="This device code has already been approved or denied.",
-        )
-        return HTMLResponse(content=html, status_code=400)
-
-    # Need a logged-in user to grant consent.
-    session = signer.verify(session_cookie)
-    if session is None:
-        next_url = "/device?user_code=" + quote_plus(view.user_code)
-        return RedirectResponse(
-            url="/login?next=" + quote_plus(next_url), status_code=303
+            session_cookie=session_cookie,
         )
 
-    html = container.templates.render(
-        "device_consent.html",
-        user_code=view.user_code,
-        client_id=view.client_id,
-        requested_scopes=list(view.requested_scopes),
-        csrf_token=session.csrf_token,
-    )
-    return HTMLResponse(content=html)
-
-
-@router.get("/device", tags=["Device Flow"])
-async def device_get(
-    request: Request,
-    *,
-    lookup: Annotated[LookupDeviceCodeUseCase, Depends(_lookup_use_case)],
-    signer: Annotated[SessionSigner, Depends(_session_signer)],
-    session_cookie: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
-) -> Response:
-    user_code = request.query_params.get("user_code")
-    return await _render_device_page(
-        request,
-        user_code=user_code,
-        session_cookie=session_cookie,
-        lookup=lookup,
-        signer=signer,
-    )
-
-
-@router.post("/device", tags=["Device Flow"])
-async def device_post(
-    request: Request,
-    *,
-    lookup: Annotated[LookupDeviceCodeUseCase, Depends(_lookup_use_case)],
-    signer: Annotated[SessionSigner, Depends(_session_signer)],
-    user_code: Annotated[str, Form()],
-    session_cookie: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
-) -> Response:
-    return await _render_device_page(
-        request,
-        user_code=user_code.strip().upper(),
-        session_cookie=session_cookie,
-        lookup=lookup,
-        signer=signer,
-    )
-
-
-@router.post("/device/consent", tags=["Device Flow"])
-async def device_consent(
-    request: Request,
-    *,
-    consent_use_case: Annotated[DeviceConsentUseCase, Depends(_consent_use_case)],
-    signer: Annotated[SessionSigner, Depends(_session_signer)],
-    user_code: Annotated[str, Form()],
-    decision: Annotated[str, Form()],                                  # "approve" | "deny"
-    csrf_token: Annotated[str, Form()] = "",
-    session_cookie: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
-) -> Response:
-    session = signer.verify(session_cookie)
-    if session is None:
-        return RedirectResponse(url="/login", status_code=303)
-
-    if not secrets.compare_digest(csrf_token, session.csrf_token):
-        raise InvalidRequest("CSRF token mismatch")
-
-    await consent_use_case.execute(
-        DeviceConsentDecision(
-            user_code=user_code,
-            user_sub=session.user_sub,
-            approved=(decision == "approve"),
+    @router.post("/device", tags=["Device Flow"])
+    async def device_post(
+        *,
+        user_code: Annotated[str, Form()],
+        session_cookie: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
+    ) -> Response:
+        return await _render_device_page(
+            user_code=user_code.strip().upper(),
+            session_cookie=session_cookie,
         )
-    )
 
-    container: Container = request.app.state.container
-    html = container.templates.render("success.html")
-    return HTMLResponse(content=html)
+    @router.post("/device/consent", tags=["Device Flow"])
+    async def device_consent_submit(
+        *,
+        user_code: Annotated[str, Form()],
+        decision: Annotated[str, Form()],                              # "approve" | "deny"
+        csrf_token: Annotated[str, Form()] = "",
+        session_cookie: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
+    ) -> Response:
+        session = session_signer().verify(session_cookie)
+        if session is None:
+            return RedirectResponse(url="/login", status_code=303)
+
+        if not secrets.compare_digest(csrf_token, session.csrf_token):
+            raise InvalidRequest("CSRF token mismatch")
+
+        await device_consent().execute(
+            DeviceConsentDecision(
+                user_code=user_code,
+                user_sub=session.user_sub,
+                approved=(decision == "approve"),
+            )
+        )
+
+        html = templates.render("success.html")
+        return HTMLResponse(content=html)
+
+    return router
