@@ -413,7 +413,9 @@ async def build_container(
             random_source=random_source,
             user_code_generator=user_code_generator,
             clock=clock,
-            issuer=settings.issuer,
+            # Route knowledge belongs to composition: the web adapter mounts
+            # the verification page at /device, so the URL is assembled here.
+            verification_uri=f"{settings.issuer.rstrip('/')}/device",
             device_code_ttl_seconds=settings.device_code_ttl_seconds,
             polling_interval_seconds=settings.device_code_polling_interval_seconds,
         )

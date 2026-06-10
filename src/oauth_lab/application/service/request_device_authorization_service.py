@@ -9,6 +9,9 @@ Handles the device's initial `POST /device_authorization` call:
 4. Mint a fresh `device_code` (opaque, long) + `user_code` (short,
    human-typable).
 5. Persist `DeviceCode` and return the response payload.
+
+`verification_uri` is injected fully formed: which web route serves the
+verification page is the composition root's knowledge, not this service's.
 """
 
 from __future__ import annotations
@@ -45,7 +48,7 @@ class RequestDeviceAuthorizationService:
         random_source: RandomSource,
         user_code_generator: UserCodeGenerator,
         clock: Clock,
-        issuer: str,
+        verification_uri: str,
         device_code_ttl_seconds: int,
         polling_interval_seconds: int,
     ) -> None:
@@ -54,7 +57,7 @@ class RequestDeviceAuthorizationService:
         self._random = random_source
         self._user_codes = user_code_generator
         self._clock = clock
-        self._issuer = issuer.rstrip("/")
+        self._verification_uri = verification_uri
         self._ttl = device_code_ttl_seconds
         self._interval = polling_interval_seconds
 
@@ -98,9 +101,9 @@ class RequestDeviceAuthorizationService:
         return DeviceAuthorizationResponse(
             device_code=device_code_value,
             user_code=user_code_value,
-            verification_uri=f"{self._issuer}/device",
+            verification_uri=self._verification_uri,
             verification_uri_complete=(
-                f"{self._issuer}/device?user_code={user_code_value}"
+                f"{self._verification_uri}?user_code={user_code_value}"
             ),
             expires_in=self._ttl,
             interval=self._interval,
