@@ -46,6 +46,7 @@ Reading any file's path tells you its layer + responsibility:
 - **Mappers stay in adapters** (`adapter/outbound/persistence/sqlalchemy/`) — domain stays ORM-free
 - **Container is the only place ports meet adapters** — `container.py` composition root
 - **Domain knows nothing of HTTP, SQL, or JWT** — pure types only
+- **Secret hashing and key generation sit behind ports** (`SecretHasher`, `KeyPairGenerator`) and HTTP status mapping lives in the REST adapter (`exception_handler.py`) — domain errors carry only RFC error codes
 
 ### Design patterns
 
@@ -175,11 +176,12 @@ curl -sS -u 'demo-client:demo-secret' \
   http://localhost:8000/token | python3 -m json.tool
 ```
 
-Expected response:
+Expected response (the default `OAUTH_LAB_TOKEN_FORMAT=jwt` issues RFC 9068
+`at+jwt` access tokens; set it to `opaque` for random-string tokens):
 
 ```json
 {
-  "access_token": "rZWvrxIW9BhFcflCCUfjoPTfe8tzx_Utq2TdXBkB4no",
+  "access_token": "eyJhbGciOiJSUzI1NiIsInR5cCI6ImF0K2p3dCIsImtpZCI6Ii4uLiJ9.eyJpc3MiOi...",
   "token_type": "Bearer",
   "expires_in": 3600,
   "scope": "read"
@@ -224,7 +226,8 @@ tests/
     │   ├── test_refresh_token_rotation.py
     │   └── test_token_authorization_code.py
     ├── device_flow/                        # ✅ implemented
-    │   └── test_full_device_flow.py
+    │   ├── test_full_device_flow.py
+    │   └── test_sqlalchemy_redeem.py
     ├── jwt_bearer_flow/                    # ✅ implemented
     │   └── test_jwt_bearer.py
     └── token_exchange_flow/                # ✅ implemented
@@ -253,13 +256,13 @@ The same five names are also defined as pytest markers in `pyproject.toml` — t
 ### Running by scenario
 
 ```bash
-just test                  # everything (158 tests today)
+just test                  # everything (169 tests today)
 just test-m2m              # M2M scenario — client_credentials (11 tests)
-just test-browser          # browser scenario — authorization_code + PKCE, refresh (75 tests)
-just test-device           # device scenario — device_code (25 tests)
+just test-browser          # browser scenario — authorization_code + PKCE, refresh (81 tests)
+just test-device           # device scenario — device_code (30 tests)
 just test-shared           # scenario-agnostic tests — value objects, CLI (13 tests)
-just test-unit             # all unit tests (any scenario) — 93 today
-just test-integration      # all integration tests — 65 today
+just test-unit             # all unit tests (any scenario) — 103 today
+just test-integration      # all integration tests — 66 today
 ```
 
 The `federation` and `delegation` grants are implemented and tested under the

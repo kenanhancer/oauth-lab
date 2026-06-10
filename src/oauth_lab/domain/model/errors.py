@@ -1,8 +1,8 @@
 """OAuth 2.0 error hierarchy — RFC 6749 §5.2.
 
-Every error rendered to the client at `/token`, `/revoke`, `/introspect`,
-etc. derives from `OAuthError`. A single FastAPI exception handler maps
-these to the RFC 6749 §5.2 JSON envelope.
+Every error rendered to the client at `/token`, `/device_authorization`,
+`/userinfo`, etc. derives from `OAuthError`. A single FastAPI exception
+handler maps these to the RFC 6749 §5.2 JSON envelope.
 
 The domain speaks only the RFC error vocabulary (`error_code`); the HTTP
 status binding is a transport concern and lives in the REST adapter's
