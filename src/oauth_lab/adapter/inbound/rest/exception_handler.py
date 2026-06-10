@@ -15,6 +15,18 @@ from fastapi.responses import JSONResponse
 
 from oauth_lab.domain.model.errors import InvalidClient, OAuthError
 
+# HTTP binding of the RFC 6749 §5.2 error vocabulary. The spec defines 400
+# as the default token-endpoint error status and singles out invalid_client
+# for 401 (with a WWW-Authenticate challenge when HTTP auth was used);
+# server_error / temporarily_unavailable mirror 500 / 503. The domain only
+# carries `error_code` — this transport mapping belongs to the REST adapter.
+_HTTP_STATUS_BY_ERROR_CODE: dict[str, int] = {
+    "invalid_client": 401,
+    "server_error": 500,
+    "temporarily_unavailable": 503,
+}
+_DEFAULT_HTTP_STATUS = 400
+
 
 def register_oauth_exception_handler(app: FastAPI) -> None:
     @app.exception_handler(OAuthError)
@@ -32,4 +44,5 @@ def register_oauth_exception_handler(app: FastAPI) -> None:
         if isinstance(exc, InvalidClient):
             headers["WWW-Authenticate"] = 'Basic realm="oauth-lab"'
 
-        return JSONResponse(status_code=exc.http_status, content=body, headers=headers)
+        status = _HTTP_STATUS_BY_ERROR_CODE.get(exc.error_code, _DEFAULT_HTTP_STATUS)
+        return JSONResponse(status_code=status, content=body, headers=headers)

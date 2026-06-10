@@ -15,7 +15,6 @@ class InvalidCredentials(OAuthError):
     with an error message; it doesn't return a JSON envelope."""
 
     error_code = "invalid_credentials"
-    http_status = 401
 
 
 class LoginUseCase(Protocol):
