@@ -61,6 +61,122 @@ Reading any file's path tells you its layer + responsibility:
 | Null Object | `NoneAuthenticator` for public clients (RFC 6749 §2.3) |
 | Composition Root | `container.py` — explicit DI graph wired at startup |
 
+## Repository layout
+
+The full map — every port, adapter, and service, and the rule it obeys
+(`tests/` has its own tree under [Test layout](#test-layout)):
+
+```
+oauth-lab/
+├── Justfile                          dev commands (install / dev / seed / test / lint)
+├── pyproject.toml                    deps + ruff / mypy --strict / pytest config
+├── openapi.yaml                      vendored contract snapshot from oauth-openapi
+├── openapitools.json                 openapi-generator pin (7.14.0)
+├── Dockerfile / docker-compose.yaml  app image + Postgres for `just dev-prod`
+├── .env.example                      OAUTH_LAB_* settings template
+├── .tool-versions / .python-version  Python 3.12.7 pin
+├── tests/                            unit + integration, by OAuth scenario
+└── src/oauth_lab/
+    ├── main.py                       HTTP composition root — mounts every router via its
+    │                                 build_router() factory; only place touching app.state
+    ├── container.py                  composition root — the only place ports meet adapters
+    ├── config.py                     pydantic-settings (env prefix OAUTH_LAB_)
+    │
+    ├── domain/                       pure protocol rules — imports stdlib only
+    │   ├── model/
+    │   │   ├── client.py · user.py · authorization_code.py · refresh_token.py
+    │   │   ├── device_code.py · trusted_assertion_issuer.py        entities
+    │   │   ├── client_id.py · scope.py · pkce.py · grant_type.py
+    │   │   ├── client_auth_method.py · token_type_uri.py           value objects
+    │   │   └── errors.py             OAuthError hierarchy — RFC error codes, no HTTP
+    │   └── service/
+    │       ├── pkce_verifier.py      RFC 7636 S256 check, constant-time
+    │       └── scope_validator.py
+    │
+    ├── application/
+    │   ├── port/
+    │   │   ├── inbound/              what the application OFFERS — one contract per use
+    │   │   │   │                     case; each port owns its request/result DTOs
+    │   │   │   ├── authorize_use_case.py            AuthorizeResult outcome union
+    │   │   │   ├── consent_use_case.py              ConsentGranted | ConsentDenied
+    │   │   │   ├── issue_token_use_case.py          TokenRequest / TokenIssuanceResult
+    │   │   │   ├── login_use_case.py
+    │   │   │   ├── get_user_info_use_case.py
+    │   │   │   ├── get_server_metadata_use_case.py
+    │   │   │   ├── request_device_authorization_use_case.py
+    │   │   │   ├── lookup_device_code_use_case.py
+    │   │   │   ├── device_consent_use_case.py
+    │   │   │   └── seed_demo_data_use_case.py
+    │   │   └── outbound/             what the application REQUIRES — driven Protocols
+    │   │       ├── authorization_code_repository.py  atomic consume()
+    │   │       ├── refresh_token_repository.py       atomic rotate() + revoke_family()
+    │   │       ├── device_code_repository.py         atomic redeem()
+    │   │       ├── client_repository.py · user_repository.py
+    │   │       ├── trusted_assertion_issuer_repository.py
+    │   │       ├── token_issuer.py · id_token_issuer.py · jwks_provider.py
+    │   │       ├── access_token_verifier.py · assertion_verifier.py
+    │   │       ├── subject_token_validator.py
+    │   │       ├── secret_hasher.py                  hash / verify / dummy_verify (timing)
+    │   │       ├── key_pair_generator.py · session_signer.py
+    │   │       └── clock.py · random_source.py · user_code_generator.py
+    │   └── service/                  use-case implementations (one per inbound port)
+    │       ├── authorize_service.py · consent_service.py · login_service.py
+    │       ├── issue_token_service.py                authenticate → resolve grant → execute
+    │       ├── get_user_info_service.py              OIDC §5.4 scope→claims policy
+    │       ├── server_metadata_service.py            metadata derived from the registries
+    │       ├── request_device_authorization_service.py
+    │       ├── lookup_device_code_service.py · device_consent_service.py
+    │       ├── seed_demo_data_service.py
+    │       ├── client_auth/                          Strategy — RFC 6749 §2.3
+    │       │   ├── client_authenticator.py           pipeline + AuthenticatedClient
+    │       │   ├── client_secret_basic_authenticator.py
+    │       │   ├── client_secret_post_authenticator.py
+    │       │   └── none_authenticator.py             public clients (PKCE only)
+    │       └── grant/                                Strategy — one per grant_type
+    │           ├── grant_strategy.py · grant_registry.py
+    │           ├── authorization_code_grant.py       PKCE verify + code consume
+    │           ├── refresh_token_grant.py            rotation + family revocation
+    │           ├── device_code_grant.py              RFC 8628 polling outcomes
+    │           ├── client_credentials_grant.py
+    │           ├── jwt_bearer_grant.py               RFC 7523
+    │           └── token_exchange_grant.py           RFC 8693
+    │
+    └── adapter/
+        ├── inbound/                  driving adapters — translate transport ↔ ports
+        │   ├── rest/
+        │   │   ├── token_controller.py · jwks_controller.py · userinfo_controller.py
+        │   │   ├── discovery_controller.py · device_authorization_controller.py
+        │   │   └── exception_handler.py    error_code → HTTP status map (RFC 6749 §5.2)
+        │   ├── web/
+        │   │   ├── authorize_controller.py · login_controller.py
+        │   │   ├── consent_controller.py · device_controller.py
+        │   │   ├── authorization_response.py   redirect builder — RFC 9207 iss lives here
+        │   │   ├── session_guard.py            shared session + CSRF gate
+        │   │   ├── session_constants.py · template_renderer.py
+        │   │   └── templates/                  base / login / consent / device_* / error
+        │   └── cli/
+        │       └── __main__.py · seed_command.py    python -m …inbound.cli seed
+        └── outbound/                 driven adapters — implement the outbound ports
+            ├── crypto/
+            │   ├── jwt_token_issuer.py             RFC 9068 at+jwt
+            │   ├── opaque_token_issuer.py · token_issuer_factory.py
+            │   ├── id_token_issuer.py · jwks_provider.py
+            │   ├── jwt_access_token_verifier.py · pyjwt_assertion_verifier.py
+            │   ├── jwt_subject_token_validator.py
+            │   ├── argon2_secret_hasher.py         the only argon2 import in the codebase
+            │   └── key_generator.py
+            ├── persistence/
+            │   ├── orm/models.py                   SQLAlchemy tables — domain stays ORM-free
+            │   ├── memory/                         dict + asyncio.Lock (tests, memory://)
+            │   ├── sqlalchemy/                     shared async impls; conditional-UPDATE
+            │   │                                   consume / rotate / redeem
+            │   ├── sqlite/                         thin named subclasses of sqlalchemy/
+            │   └── postgres/                       (6 repository files each)
+            ├── session/itsdangerous_session_signer.py
+            ├── random/secure_random_source.py · user_code_generator.py
+            └── time/system_clock.py
+```
+
 ## Process model — one binary per inbound adapter type
 
 Hexagonal Architecture is silent on how inbound adapters are packaged into
