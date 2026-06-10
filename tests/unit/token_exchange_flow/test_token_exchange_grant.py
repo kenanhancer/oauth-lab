@@ -24,9 +24,9 @@ from oauth_lab.adapter.outbound.crypto.key_generator import (
     generate_rsa_keypair_pem,
     public_key_pem_from_private,
 )
+from oauth_lab.application.port.inbound.issue_token_use_case import TokenRequest
 from oauth_lab.application.port.outbound.token_issuer import IssuedToken
 from oauth_lab.application.service.client_auth.client_authenticator import AuthenticatedClient
-from oauth_lab.application.service.grant.grant_strategy import TokenRequest
 from oauth_lab.application.service.grant.token_exchange_grant import TokenExchangeGrant
 from oauth_lab.domain.model.client import Client
 from oauth_lab.domain.model.client_auth_method import ClientAuthMethod

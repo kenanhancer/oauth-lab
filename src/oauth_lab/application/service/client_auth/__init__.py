@@ -1,6 +1,5 @@
 from oauth_lab.application.service.client_auth.client_authenticator import (
     ClientAuthenticator,
-    ClientCredentials,
     ClientCredentialsPipeline,
 )
 from oauth_lab.application.service.client_auth.client_secret_basic_authenticator import (
@@ -13,7 +12,6 @@ from oauth_lab.application.service.client_auth.none_authenticator import NoneAut
 
 __all__ = [
     "ClientAuthenticator",
-    "ClientCredentials",
     "ClientCredentialsPipeline",
     "ClientSecretBasicAuthenticator",
     "ClientSecretPostAuthenticator",

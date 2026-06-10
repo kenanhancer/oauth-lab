@@ -18,9 +18,8 @@ from fastapi import APIRouter, Cookie, Depends, Form, Request
 from fastapi.responses import RedirectResponse, Response
 
 from oauth_lab.adapter.inbound.web.authorize_controller import SESSION_COOKIE_NAME
-from oauth_lab.application.port.inbound.consent_use_case import ConsentUseCase
+from oauth_lab.application.port.inbound.consent_use_case import ConsentDecision, ConsentUseCase
 from oauth_lab.application.port.outbound.session_signer import SessionSigner
-from oauth_lab.application.service.consent_service import ConsentDecision
 from oauth_lab.container import Container
 from oauth_lab.domain.model.errors import InvalidRequest
 

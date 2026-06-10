@@ -13,17 +13,9 @@ import secrets
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
+from oauth_lab.application.port.inbound.login_use_case import InvalidCredentials
 from oauth_lab.application.port.outbound.session_signer import SessionData, SessionSigner
 from oauth_lab.application.port.outbound.user_repository import UserRepository
-from oauth_lab.domain.model.errors import OAuthError
-
-
-class InvalidCredentials(OAuthError):
-    """Wrong username/password. The `/login` route renders the form again
-    with an error message; it doesn't return a JSON envelope."""
-
-    error_code = "invalid_credentials"
-    http_status = 401
 
 
 class LoginService:

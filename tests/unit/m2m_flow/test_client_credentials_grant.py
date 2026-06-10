@@ -11,10 +11,10 @@ from __future__ import annotations
 
 import pytest
 
+from oauth_lab.application.port.inbound.issue_token_use_case import TokenRequest
 from oauth_lab.application.port.outbound.token_issuer import IssuedToken
 from oauth_lab.application.service.client_auth.client_authenticator import AuthenticatedClient
 from oauth_lab.application.service.grant.client_credentials_grant import ClientCredentialsGrant
-from oauth_lab.application.service.grant.grant_strategy import TokenRequest
 from oauth_lab.domain.model.client import Client
 from oauth_lab.domain.model.client_auth_method import ClientAuthMethod
 from oauth_lab.domain.model.client_id import ClientId

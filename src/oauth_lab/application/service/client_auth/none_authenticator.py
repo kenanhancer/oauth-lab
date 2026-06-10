@@ -10,11 +10,11 @@ PKCE is the actual security control for public clients in the
 
 from __future__ import annotations
 
+from oauth_lab.application.port.inbound.issue_token_use_case import ClientCredentials
 from oauth_lab.application.port.outbound.client_repository import ClientRepository
 from oauth_lab.application.service.client_auth.client_authenticator import (
     AuthenticatedClient,
     ClientAuthenticator,
-    ClientCredentials,
 )
 from oauth_lab.domain.model.client_auth_method import ClientAuthMethod
 from oauth_lab.domain.model.client_id import ClientId

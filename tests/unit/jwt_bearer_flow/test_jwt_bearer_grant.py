@@ -23,9 +23,9 @@ from oauth_lab.adapter.outbound.crypto.pyjwt_assertion_verifier import PyJwtAsse
 from oauth_lab.adapter.outbound.persistence.memory.trusted_assertion_issuer_repository import (
     InMemoryTrustedAssertionIssuerRepository,
 )
+from oauth_lab.application.port.inbound.issue_token_use_case import TokenRequest
 from oauth_lab.application.port.outbound.token_issuer import IssuedToken
 from oauth_lab.application.service.client_auth.client_authenticator import AuthenticatedClient
-from oauth_lab.application.service.grant.grant_strategy import TokenRequest
 from oauth_lab.application.service.grant.jwt_bearer_grant import JwtBearerGrant
 from oauth_lab.domain.model.client import Client
 from oauth_lab.domain.model.client_auth_method import ClientAuthMethod

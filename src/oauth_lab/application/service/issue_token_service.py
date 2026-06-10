@@ -12,15 +12,15 @@ once per `/token` request. Everything below it is pure.
 
 from __future__ import annotations
 
-from oauth_lab.application.service.client_auth.client_authenticator import (
+from oauth_lab.application.port.inbound.issue_token_use_case import (
     ClientCredentials,
-    ClientCredentialsPipeline,
-)
-from oauth_lab.application.service.grant.grant_registry import GrantRegistry
-from oauth_lab.application.service.grant.grant_strategy import (
     TokenIssuanceResult,
     TokenRequest,
 )
+from oauth_lab.application.service.client_auth.client_authenticator import (
+    ClientCredentialsPipeline,
+)
+from oauth_lab.application.service.grant.grant_registry import GrantRegistry
 
 
 class IssueTokenService:

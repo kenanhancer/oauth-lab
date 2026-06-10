@@ -17,9 +17,9 @@ from oauth_lab.adapter.outbound.persistence.memory.refresh_token_repository impo
     InMemoryRefreshTokenRepository,
 )
 from oauth_lab.adapter.outbound.random.secure_random_source import SecureRandomSource
+from oauth_lab.application.port.inbound.issue_token_use_case import TokenRequest
 from oauth_lab.application.port.outbound.token_issuer import IssuedToken
 from oauth_lab.application.service.client_auth.client_authenticator import AuthenticatedClient
-from oauth_lab.application.service.grant.grant_strategy import TokenRequest
 from oauth_lab.application.service.grant.refresh_token_grant import RefreshTokenGrant
 from oauth_lab.domain.model.client import Client
 from oauth_lab.domain.model.client_auth_method import ClientAuthMethod

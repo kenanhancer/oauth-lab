@@ -15,13 +15,13 @@ from urllib.parse import quote_plus, urlencode
 from fastapi import APIRouter, Cookie, Depends, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
-from oauth_lab.application.port.inbound.authorize_use_case import AuthorizeUseCase
-from oauth_lab.application.service.authorize_service import (
+from oauth_lab.application.port.inbound.authorize_use_case import (
     AuthorizeRedirectError,
     AuthorizeRedirectToLogin,
     AuthorizeRenderError,
     AuthorizeRequest,
     AuthorizeShowConsent,
+    AuthorizeUseCase,
 )
 from oauth_lab.container import Container
 

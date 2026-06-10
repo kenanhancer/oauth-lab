@@ -19,9 +19,12 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, Form, Header, Request
 from fastapi.responses import JSONResponse
 
-from oauth_lab.application.port.inbound.issue_token_use_case import IssueTokenUseCase
-from oauth_lab.application.service.client_auth.client_authenticator import ClientCredentials
-from oauth_lab.application.service.grant.grant_strategy import TokenIssuanceResult, TokenRequest
+from oauth_lab.application.port.inbound.issue_token_use_case import (
+    ClientCredentials,
+    IssueTokenUseCase,
+    TokenIssuanceResult,
+    TokenRequest,
+)
 from oauth_lab.container import Container
 from oauth_lab.domain.model.errors import InvalidRequest, UnsupportedGrantType
 from oauth_lab.domain.model.grant_type import GrantType

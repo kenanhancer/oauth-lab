@@ -7,11 +7,11 @@ import contextlib
 from argon2 import PasswordHasher
 from argon2.exceptions import VerifyMismatchError
 
+from oauth_lab.application.port.inbound.issue_token_use_case import ClientCredentials
 from oauth_lab.application.port.outbound.client_repository import ClientRepository
 from oauth_lab.application.service.client_auth.client_authenticator import (
     AuthenticatedClient,
     ClientAuthenticator,
-    ClientCredentials,
 )
 from oauth_lab.domain.model.client import Client
 from oauth_lab.domain.model.client_auth_method import ClientAuthMethod

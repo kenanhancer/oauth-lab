@@ -19,17 +19,17 @@ from __future__ import annotations
 from datetime import timedelta
 from typing import ClassVar
 
+from oauth_lab.application.port.inbound.issue_token_use_case import (
+    TokenIssuanceResult,
+    TokenRequest,
+)
 from oauth_lab.application.port.outbound.clock import Clock
 from oauth_lab.application.port.outbound.device_code_repository import DeviceCodeRepository
 from oauth_lab.application.port.outbound.random_source import RandomSource
 from oauth_lab.application.port.outbound.refresh_token_repository import RefreshTokenRepository
 from oauth_lab.application.port.outbound.token_issuer import TokenIssuer
 from oauth_lab.application.service.client_auth.client_authenticator import AuthenticatedClient
-from oauth_lab.application.service.grant.grant_strategy import (
-    GrantStrategy,
-    TokenIssuanceResult,
-    TokenRequest,
-)
+from oauth_lab.application.service.grant.grant_strategy import GrantStrategy
 from oauth_lab.domain.model.errors import (
     AccessDenied,
     AuthorizationPending,

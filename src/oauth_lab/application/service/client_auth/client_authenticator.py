@@ -16,6 +16,7 @@ from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from dataclasses import dataclass
 
+from oauth_lab.application.port.inbound.issue_token_use_case import ClientCredentials
 from oauth_lab.application.port.outbound.client_repository import ClientRepository
 from oauth_lab.domain.model.client import Client
 from oauth_lab.domain.model.client_auth_method import ClientAuthMethod
@@ -23,17 +24,6 @@ from oauth_lab.domain.model.client_id import ClientId
 from oauth_lab.domain.model.errors import InvalidClient
 from oauth_lab.domain.model.grant_type import GrantType
 from oauth_lab.domain.model.scope import ScopeSet
-
-
-@dataclass(frozen=True, slots=True)
-class ClientCredentials:
-    """The raw credentials extracted from an HTTP request, before validation."""
-
-    basic_auth_header: str | None = None              # HTTP Basic header value (no "Basic " prefix)
-    form_client_id: str | None = None
-    form_client_secret: str | None = None
-    client_assertion: str | None = None
-    client_assertion_type: str | None = None
 
 
 @dataclass(frozen=True, slots=True)

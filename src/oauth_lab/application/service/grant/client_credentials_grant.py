@@ -8,13 +8,13 @@ from __future__ import annotations
 
 from typing import ClassVar
 
-from oauth_lab.application.port.outbound.token_issuer import TokenIssuer
-from oauth_lab.application.service.client_auth.client_authenticator import AuthenticatedClient
-from oauth_lab.application.service.grant.grant_strategy import (
-    GrantStrategy,
+from oauth_lab.application.port.inbound.issue_token_use_case import (
     TokenIssuanceResult,
     TokenRequest,
 )
+from oauth_lab.application.port.outbound.token_issuer import TokenIssuer
+from oauth_lab.application.service.client_auth.client_authenticator import AuthenticatedClient
+from oauth_lab.application.service.grant.grant_strategy import GrantStrategy
 from oauth_lab.domain.model.errors import UnauthorizedClient
 from oauth_lab.domain.model.grant_type import GrantType
 from oauth_lab.domain.service.scope_validator import ScopeValidator

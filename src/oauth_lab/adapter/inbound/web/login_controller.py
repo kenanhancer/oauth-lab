@@ -18,8 +18,7 @@ from fastapi import APIRouter, Depends, Form, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from oauth_lab.adapter.inbound.web.authorize_controller import SESSION_COOKIE_NAME
-from oauth_lab.application.port.inbound.login_use_case import LoginUseCase
-from oauth_lab.application.service.login_service import InvalidCredentials
+from oauth_lab.application.port.inbound.login_use_case import InvalidCredentials, LoginUseCase
 from oauth_lab.container import Container
 
 router = APIRouter()

@@ -13,10 +13,10 @@ user-controllable.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
 from datetime import timedelta
 from urllib.parse import quote, urlencode
 
+from oauth_lab.application.port.inbound.consent_use_case import ConsentDecision
 from oauth_lab.application.port.outbound.authorization_code_repository import (
     AuthorizationCodeRepository,
 )
@@ -29,18 +29,6 @@ from oauth_lab.domain.model.errors import InvalidRequest, InvalidScope
 from oauth_lab.domain.model.grant_type import GrantType
 from oauth_lab.domain.model.pkce import PKCEChallenge
 from oauth_lab.domain.model.scope import ScopeSet
-
-
-@dataclass(frozen=True, slots=True)
-class ConsentDecision:
-    approved: bool
-    user_sub: str                                                 # comes from verified session
-    client_id: str
-    redirect_uri: str
-    scope: str | None
-    state: str | None
-    code_challenge: str
-    code_challenge_method: str
 
 
 class ConsentService:
