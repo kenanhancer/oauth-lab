@@ -36,7 +36,9 @@ class SqlAlchemyUserRepository:
 
 
 def _to_domain(row: UserRow) -> User:
-    return User(sub=row.sub, username=row.username, password_hash=row.password_hash, email=row.email)
+    return User(
+        sub=row.sub, username=row.username, password_hash=row.password_hash, email=row.email
+    )
 
 
 def _to_row(user: User) -> UserRow:

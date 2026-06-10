@@ -20,7 +20,7 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
 from oauth_lab.adapter.inbound.web.session_constants import SESSION_COOKIE_NAME
 from oauth_lab.adapter.inbound.web.template_renderer import TemplateRenderer
-from oauth_lab.application.port.inbound.login_use_case import InvalidCredentials, LoginUseCase
+from oauth_lab.application.port.inbound.login_use_case import InvalidCredentialsError, LoginUseCase
 
 
 def safe_next(next_url: str | None) -> str:
@@ -68,7 +68,7 @@ def build_router(
         target = safe_next(next)
         try:
             cookie_value = await login().execute(username=username, password=password)
-        except InvalidCredentials:
+        except InvalidCredentialsError:
             html = templates.render(
                 "login.html",
                 next_url=target,

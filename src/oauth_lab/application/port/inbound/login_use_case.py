@@ -10,7 +10,7 @@ from typing import Protocol
 from oauth_lab.domain.model.errors import OAuthError
 
 
-class InvalidCredentials(OAuthError):
+class InvalidCredentialsError(OAuthError):
     """Wrong username/password. The `/login` route renders the form again
     with an error message; it doesn't return a JSON envelope."""
 

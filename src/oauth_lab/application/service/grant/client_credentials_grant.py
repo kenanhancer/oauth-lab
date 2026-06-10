@@ -60,7 +60,7 @@ class ClientCredentialsGrant(GrantStrategy):
 
         return TokenIssuanceResult(
             access_token=issued.value,
-            token_type="Bearer",
+            token_type="Bearer",  # noqa: S106 — RFC 6749 §7.1 token type, not a credential
             expires_in=issued.expires_in_seconds,
             scope=granted_scope,
         )

@@ -5,7 +5,7 @@ We produce 8 characters from a restricted consonant set (no vowels,
 no easily-confused glyphs) split by a dash for readability:
 ``"BCDF-GHJK"``.
 
-20-letter alphabet × 8 positions ≈ 25.6 billion combinations — well
+20-letter alphabet x 8 positions ≈ 25.6 billion combinations — well
 beyond brute-force given the < 30 min TTL the RFC recommends.
 """
 

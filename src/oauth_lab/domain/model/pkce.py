@@ -1,12 +1,15 @@
-"""PKCE value object — RFC 7636 § 4.1–4.3, plus OAuth 2.1 § 4.8 (S256-only).
+"""PKCE value object — RFC 7636 § 4.1-4.3, profiled to S256 only.
 
 A `PKCEChallenge` carries the `code_challenge` and `code_challenge_method`
 that arrive at `/authorize` and must later match the `code_verifier`
 presented at `/token`. The verification itself lives in
 `domain/service/pkce_verifier.py`.
 
-OAuth 2.1 forbids `code_challenge_method=plain` (downgrade attack);
-RFC 9700 § 4.8 reiterates this. We accept only `S256`.
+Only `S256` is accepted: RFC 9700 § 2.1.1 has clients use challenge methods
+that do not expose the verifier in the authorization request — today that is
+only S256 — and § 4.8 describes the downgrade attack that `plain` invites.
+OAuth 2.1 itself still defines `plain` (for clients that cannot compute
+S256); this AS deliberately serves no such clients.
 """
 
 from __future__ import annotations

@@ -38,7 +38,7 @@ async def oidc_app(demo_clients, demo_users) -> FastAPI:
     """A test app with JWT access tokens (so /userinfo can verify them)."""
     settings = Settings(
         database_url="memory://",
-        token_format="jwt",                                                       # required for /userinfo
+        token_format="jwt",  # /userinfo verifies JWTs
         session_secret_key="test-secret-stable",
     )
     container = await build_container(

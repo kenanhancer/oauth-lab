@@ -136,7 +136,7 @@ class AuthorizationCodeGrant(GrantStrategy):
 
         return TokenIssuanceResult(
             access_token=issued_access.value,
-            token_type="Bearer",
+            token_type="Bearer",  # noqa: S106 — RFC 6749 §7.1 token type, not a credential
             expires_in=issued_access.expires_in_seconds,
             scope=code.scope,
             refresh_token=refresh_token_value,

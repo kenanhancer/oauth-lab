@@ -71,6 +71,17 @@ ignore = ["S101"]
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S105", "S106"]
+# Exception names mirror the RFC 6749/6750/8628 wire error codes 1:1
+# (InvalidGrant <-> invalid_grant). The Error-suffix convention would break
+# the protocol vocabulary this codebase exists to teach.
+"src/oauth_lab/domain/model/errors.py" = ["N818"]
+# Enum members and settings defaults hold public protocol identifiers
+# (grant-type URNs, client-auth method names, token formats); the dev
+# session-key sentinel is guarded by the container's fail-closed startup
+# check. None of these are credentials.
+"src/oauth_lab/config.py" = ["S105"]
+"src/oauth_lab/domain/model/client_auth_method.py" = ["S105"]
+"src/oauth_lab/domain/model/grant_type.py" = ["S105"]
 
 [tool.mypy]
 python_version = "3.12"
