@@ -21,6 +21,7 @@ from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
 from oauth_lab.adapter.inbound.web.template_renderer import TemplateRenderer
 
 # Adapter — outbound (driven) implementations
+from oauth_lab.adapter.outbound.crypto.argon2_secret_hasher import Argon2SecretHasher
 from oauth_lab.adapter.outbound.crypto.id_token_issuer import JwtIdTokenIssuer
 from oauth_lab.adapter.outbound.crypto.jwks_provider import RsaJwksProvider, rsa_jwk_thumbprint
 from oauth_lab.adapter.outbound.crypto.jwt_subject_token_validator import (
@@ -107,6 +108,7 @@ from oauth_lab.application.port.outbound.device_code_repository import DeviceCod
 from oauth_lab.application.port.outbound.id_token_issuer import IdTokenIssuer
 from oauth_lab.application.port.outbound.jwks_provider import JwksProvider
 from oauth_lab.application.port.outbound.refresh_token_repository import RefreshTokenRepository
+from oauth_lab.application.port.outbound.secret_hasher import SecretHasher
 from oauth_lab.application.port.outbound.session_signer import SessionSigner
 from oauth_lab.application.port.outbound.subject_token_validator import SubjectTokenValidator
 from oauth_lab.application.port.outbound.trusted_assertion_issuer_repository import (
@@ -251,6 +253,8 @@ async def build_container(
 
     clock = SystemClock()
     random_source = SecureRandomSource()
+    # One shared instance: it precomputes the dummy-verify hash once.
+    secret_hasher: SecretHasher = Argon2SecretHasher()
     user_code_generator: UserCodeGenerator = SecureUserCodeGenerator()
     assertion_verifier: AssertionVerifier = PyJwtAssertionVerifier()
     # subject_token_validator constructed below — needs the signing key
@@ -372,8 +376,8 @@ async def build_container(
 
     client_auth = ClientCredentialsPipeline(
         authenticators=[
-            ClientSecretBasicAuthenticator(repos.clients),
-            ClientSecretPostAuthenticator(repos.clients),
+            ClientSecretBasicAuthenticator(repos.clients, secret_hasher),
+            ClientSecretPostAuthenticator(repos.clients, secret_hasher),
             NoneAuthenticator(repos.clients),
         ],
         clients=repos.clients,
@@ -388,7 +392,7 @@ async def build_container(
         session_signer=session_signer,
     )
     login: LoginUseCase = LoginService(
-        users=repos.users, session_signer=session_signer
+        users=repos.users, session_signer=session_signer, secret_hasher=secret_hasher
     )
     consent: ConsentUseCase = ConsentService(
         clients=repos.clients,
@@ -422,6 +426,7 @@ async def build_container(
         clients=repos.clients,
         users=repos.users,
         trusted_issuers=repos.trusted_issuers,
+        secret_hasher=secret_hasher,
     )
 
     return Container(

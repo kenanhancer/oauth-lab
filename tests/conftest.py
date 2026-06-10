@@ -10,10 +10,10 @@ from __future__ import annotations
 from collections.abc import AsyncIterator
 
 import pytest
-from argon2 import PasswordHasher
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 
+from oauth_lab.adapter.outbound.crypto.argon2_secret_hasher import Argon2SecretHasher
 from oauth_lab.adapter.outbound.crypto.key_generator import (
     generate_rsa_keypair_pem,
     public_key_pem_from_private,
@@ -56,10 +56,10 @@ DEMO_USER_PASSWORD = "alice-password"
 @pytest.fixture
 def demo_clients() -> InMemoryClientRepository:
     """Three fixture clients: confidential M2M + public SPA (browser) + public device."""
-    hasher = PasswordHasher()
+    hasher = Argon2SecretHasher()
     confidential = Client(
         id=ClientId(DEMO_CLIENT_ID),
-        secret_hash=hasher.hash(DEMO_CLIENT_SECRET).encode("utf-8"),
+        secret_hash=hasher.hash(DEMO_CLIENT_SECRET),
         token_endpoint_auth_method=ClientAuthMethod.CLIENT_SECRET_BASIC,
         allowed_grant_types=frozenset({GrantType.CLIENT_CREDENTIALS}),
         allowed_scopes=ScopeSet(frozenset({Scope("read"), Scope("write")})),
@@ -88,7 +88,7 @@ def demo_clients() -> InMemoryClientRepository:
     )
     jwt_bearer_client = Client(
         id=ClientId(DEMO_JWT_BEARER_CLIENT_ID),
-        secret_hash=hasher.hash(DEMO_JWT_BEARER_CLIENT_SECRET).encode("utf-8"),
+        secret_hash=hasher.hash(DEMO_JWT_BEARER_CLIENT_SECRET),
         token_endpoint_auth_method=ClientAuthMethod.CLIENT_SECRET_BASIC,
         allowed_grant_types=frozenset({GrantType.JWT_BEARER}),
         allowed_scopes=ScopeSet(frozenset({Scope("read"), Scope("write")})),
@@ -96,7 +96,7 @@ def demo_clients() -> InMemoryClientRepository:
     )
     exchange_client = Client(
         id=ClientId(DEMO_EXCHANGE_CLIENT_ID),
-        secret_hash=hasher.hash(DEMO_EXCHANGE_CLIENT_SECRET).encode("utf-8"),
+        secret_hash=hasher.hash(DEMO_EXCHANGE_CLIENT_SECRET),
         token_endpoint_auth_method=ClientAuthMethod.CLIENT_SECRET_BASIC,
         allowed_grant_types=frozenset(
             {GrantType.CLIENT_CREDENTIALS, GrantType.TOKEN_EXCHANGE}
@@ -142,11 +142,11 @@ def trusted_issuers(
 
 @pytest.fixture
 def demo_users() -> InMemoryUserRepository:
-    hasher = PasswordHasher()
+    hasher = Argon2SecretHasher()
     alice = User(
         sub=DEMO_USER_SUB,
         username=DEMO_USERNAME,
-        password_hash=hasher.hash(DEMO_USER_PASSWORD).encode("utf-8"),
+        password_hash=hasher.hash(DEMO_USER_PASSWORD),
         email="alice@example.com",
     )
     return InMemoryUserRepository({alice.sub: alice})

@@ -12,8 +12,6 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from argon2 import PasswordHasher
-
 from oauth_lab.adapter.outbound.crypto.key_generator import (
     generate_rsa_keypair_pem,
     public_key_pem_from_private,
@@ -25,6 +23,7 @@ from oauth_lab.application.port.inbound.seed_demo_data_use_case import (
     SeededUser,
 )
 from oauth_lab.application.port.outbound.client_repository import ClientRepository
+from oauth_lab.application.port.outbound.secret_hasher import SecretHasher
 from oauth_lab.application.port.outbound.trusted_assertion_issuer_repository import (
     TrustedAssertionIssuerRepository,
 )
@@ -141,18 +140,19 @@ class SeedDemoDataService:
         clients: ClientRepository,
         users: UserRepository,
         trusted_issuers: TrustedAssertionIssuerRepository,
+        secret_hasher: SecretHasher,
     ) -> None:
         self._clients = clients
         self._users = users
         self._trusted_issuers = trusted_issuers
-        self._hasher = PasswordHasher()
+        self._hasher = secret_hasher
 
     async def execute(self) -> SeedDemoDataResult:
         seeded_clients: list[SeededClient] = []
         for spec in _DEMO_CLIENTS:
             secret_hash: bytes | None = None
             if spec.secret is not None:
-                secret_hash = self._hasher.hash(spec.secret).encode("utf-8")
+                secret_hash = self._hasher.hash(spec.secret)
             client = Client(
                 id=ClientId(spec.id),
                 secret_hash=secret_hash,
@@ -179,7 +179,7 @@ class SeedDemoDataService:
             user = User(
                 sub=u_spec.sub,
                 username=u_spec.username,
-                password_hash=self._hasher.hash(u_spec.password).encode("utf-8"),
+                password_hash=self._hasher.hash(u_spec.password),
                 email=u_spec.email,
             )
             await self._users.save(user)

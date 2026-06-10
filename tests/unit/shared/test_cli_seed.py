@@ -6,8 +6,7 @@ NOT through the CLI adapter (CLI is only a thin argparse wrapper).
 
 from __future__ import annotations
 
-from argon2 import PasswordHasher
-
+from oauth_lab.adapter.outbound.crypto.argon2_secret_hasher import Argon2SecretHasher
 from oauth_lab.container import Container
 from oauth_lab.domain.model.client_id import ClientId
 
@@ -23,11 +22,12 @@ class TestSeedDemoData:
         assert demo.is_confidential()
         # The hash should be a valid Argon2id encoding the known secret
         assert demo.secret_hash is not None
-        PasswordHasher().verify(demo.secret_hash.decode("utf-8"), "demo-secret")
+        hasher = Argon2SecretHasher()
+        assert hasher.verify(demo.secret_hash, "demo-secret")
 
         alice = await container.users.find_by_username("alice")
         assert alice is not None
-        PasswordHasher().verify(alice.password_hash.decode("utf-8"), "alice-password")
+        assert hasher.verify(alice.password_hash, "alice-password")
 
     async def test_is_idempotent(self, container: Container) -> None:
         first = await container.seed_demo_data.execute()
