@@ -18,8 +18,15 @@ from typing import Annotated
 from fastapi import APIRouter, Cookie, Form
 from fastapi.responses import RedirectResponse, Response
 
+from oauth_lab.adapter.inbound.web.authorization_response import (
+    encode_authorization_response,
+)
 from oauth_lab.adapter.inbound.web.session_constants import SESSION_COOKIE_NAME
-from oauth_lab.application.port.inbound.consent_use_case import ConsentDecision, ConsentUseCase
+from oauth_lab.application.port.inbound.consent_use_case import (
+    ConsentDecision,
+    ConsentDenied,
+    ConsentUseCase,
+)
 from oauth_lab.application.port.outbound.session_signer import SessionSigner
 from oauth_lab.domain.model.errors import InvalidRequest
 
@@ -28,9 +35,11 @@ def build_router(
     *,
     consent: Callable[[], ConsentUseCase],
     session_signer: Callable[[], SessionSigner],
+    issuer: str,
 ) -> APIRouter:
-    """Mount `POST /consent`. Both dependencies are providers resolved per
-    request so the composition root can wire the container lazily."""
+    """Mount `POST /consent`. The use case and signer are providers resolved
+    per request so the composition root can wire the container lazily;
+    `issuer` feeds the RFC 9207 `iss` parameter on the redirect back."""
     router = APIRouter()
 
     @router.post("/consent", tags=["Browser"])
@@ -54,7 +63,7 @@ def build_router(
         if not secrets.compare_digest(csrf_token, session.csrf_token):
             raise InvalidRequest("CSRF token mismatch")
 
-        target_url = await consent().execute(
+        result = await consent().execute(
             ConsentDecision(
                 approved=(decision == "approve"),
                 user_sub=session.user_sub,
@@ -65,6 +74,16 @@ def build_router(
                 code_challenge=code_challenge,
                 code_challenge_method=code_challenge_method,
             )
+        )
+        if isinstance(result, ConsentDenied):
+            params = {
+                "error": ConsentDenied.ERROR_CODE,
+                "error_description": result.error_description,
+            }
+        else:
+            params = {"code": result.code}
+        target_url = encode_authorization_response(
+            result.redirect_uri, params, state=result.state, issuer=issuer
         )
         return RedirectResponse(url=target_url, status_code=303)
 

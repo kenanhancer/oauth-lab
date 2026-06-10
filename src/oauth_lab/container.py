@@ -405,7 +405,6 @@ async def build_container(
         random_source=random_source,
         clock=clock,
         code_ttl_seconds=settings.authorization_code_ttl_seconds,
-        issuer=settings.issuer,
     )
     request_device_authorization: RequestDeviceAuthorizationUseCase = (
         RequestDeviceAuthorizationService(

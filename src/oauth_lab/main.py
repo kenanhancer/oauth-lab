@@ -110,6 +110,7 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
         consent_controller.build_router(
             consent=lambda: container().consent,
             session_signer=lambda: container().session_signer,
+            issuer=resolved.issuer,
         )
     )
     app.include_router(

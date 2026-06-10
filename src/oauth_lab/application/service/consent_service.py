@@ -1,11 +1,10 @@
 """ConsentService — implements `ConsentUseCase` for `POST /consent`.
 
 Approve: mint an `AuthorizationCode`, persist it bound to user + client
-+ scope + redirect_uri + PKCE challenge, return a redirect URL with
-`?code=...&state=...&iss=...`.
++ scope + redirect_uri + PKCE challenge, return `ConsentGranted`.
 
-Deny: return a redirect URL with `?error=access_denied&state=...&iss=...`
-(RFC 6749 §4.1.2.1 + RFC 9207).
+Deny: return `ConsentDenied` (RFC 6749 §4.1.2.1 — the adapter encodes
+it as an `error=access_denied` redirect).
 
 Re-validates client + redirect_uri because the consent form fields are
 user-controllable.
@@ -14,9 +13,13 @@ user-controllable.
 from __future__ import annotations
 
 from datetime import timedelta
-from urllib.parse import quote, urlencode
 
-from oauth_lab.application.port.inbound.consent_use_case import ConsentDecision
+from oauth_lab.application.port.inbound.consent_use_case import (
+    ConsentDecision,
+    ConsentDenied,
+    ConsentGranted,
+    ConsentResult,
+)
 from oauth_lab.application.port.outbound.authorization_code_repository import (
     AuthorizationCodeRepository,
 )
@@ -40,18 +43,14 @@ class ConsentService:
         random_source: RandomSource,
         clock: Clock,
         code_ttl_seconds: int,
-        issuer: str,
     ) -> None:
         self._clients = clients
         self._auth_codes = auth_codes
         self._random = random_source
         self._clock = clock
         self._code_ttl = code_ttl_seconds
-        self._issuer = issuer
 
-    async def execute(self, decision: ConsentDecision) -> str:
-        """Returns the URL to redirect the user-agent to."""
-
+    async def execute(self, decision: ConsentDecision) -> ConsentResult:
         # Re-validate client + redirect_uri — the form is user-controllable.
         client = await self._clients.find_by_id(ClientId(decision.client_id))
         if client is None:
@@ -61,16 +60,12 @@ class ConsentService:
         if not client.supports_grant(GrantType.AUTHORIZATION_CODE):
             raise InvalidRequest("client is not allowed to use authorization_code grant")
 
-        # User denied — redirect with error.
+        # User denied — RFC 6749 §4.1.2.1 access_denied.
         if not decision.approved:
-            return _build_redirect(
-                decision.redirect_uri,
-                {
-                    "error": "access_denied",
-                    "error_description": "user denied the authorization request",
-                    **({"state": decision.state} if decision.state else {}),
-                    "iss": self._issuer,                                            # RFC 9207
-                },
+            return ConsentDenied(
+                redirect_uri=decision.redirect_uri,
+                error_description="user denied the authorization request",
+                state=decision.state,
             )
 
         # User approved — mint a code.
@@ -101,16 +96,8 @@ class ConsentService:
         )
         await self._auth_codes.save(code)
 
-        return _build_redirect(
-            decision.redirect_uri,
-            {
-                "code": code.value,
-                **({"state": decision.state} if decision.state else {}),
-                "iss": self._issuer,                                                # RFC 9207
-            },
+        return ConsentGranted(
+            redirect_uri=decision.redirect_uri,
+            code=code.value,
+            state=decision.state,
         )
-
-
-def _build_redirect(base: str, params: dict[str, str]) -> str:
-    separator = "&" if "?" in base else "?"
-    return base + separator + urlencode(params, quote_via=quote)

@@ -4,16 +4,16 @@ The port owns the request DTO and the discriminated `AuthorizeResult`
 union; the driving adapter dispatches on the concrete variant. Four
 terminal outcomes:
 
-1. `AuthorizeRedirectToLogin` — no valid session; send the user to /login
-   carrying the full authorize URL in `next`.
-2. `AuthorizeShowConsent` — valid session; render consent.html with the
-   client name and requested scopes.
-3. `AuthorizeRenderError` — unrecoverable: missing/invalid client_id or
-   bad redirect_uri. Per RFC 6749 §4.1.2.1 the AS MUST NOT redirect in
-   these cases — it shows an HTML error page.
-4. `AuthorizeRedirectError` — recoverable (client_id + redirect_uri are
-   valid but something else is wrong): redirect back to the client with
-   `?error=...` + `state` per RFC 6749 §4.1.2.1.
+1. `AuthenticationRequired` — no valid session; the user must
+   authenticate before the request can proceed.
+2. `ConsentRequired` — valid session; the user must approve the
+   client's request (client name + requested scopes).
+3. `AuthorizationRequestError` — unrecoverable: missing/invalid
+   client_id or bad redirect_uri. Not safe to redirect — per RFC 6749
+   §4.1.2.1 the AS MUST NOT redirect in these cases.
+4. `AuthorizationResponseError` — RFC 6749 §4.1.2.1 Error Response:
+   client_id + redirect_uri are valid, so the error is delivered to the
+   client via redirect with `?error=...` + `state`.
 
 Implementation: `oauth_lab.application.service.authorize_service`.
 """
@@ -41,12 +41,12 @@ class AuthorizeRequest:
 
 
 @dataclass(frozen=True, slots=True)
-class AuthorizeRedirectToLogin:
-    next_authorize_url: str
+class AuthenticationRequired:
+    """No authenticated end-user; the adapter decides how to obtain one."""
 
 
 @dataclass(frozen=True, slots=True)
-class AuthorizeShowConsent:
+class ConsentRequired:
     client: Client
     user: User
     requested_scope: ScopeSet
@@ -57,16 +57,17 @@ class AuthorizeShowConsent:
 
 
 @dataclass(frozen=True, slots=True)
-class AuthorizeRenderError:
-    """Non-redirectable error: render HTML and stop. RFC 6749 §4.1.2.1."""
+class AuthorizationRequestError:
+    """Not safe to redirect — unknown client/redirect_uri. RFC 6749 §4.1.2.1
+    says the AS MUST NOT redirect; inform the resource owner directly."""
 
     error_code: str
     description: str
 
 
 @dataclass(frozen=True, slots=True)
-class AuthorizeRedirectError:
-    """Redirectable error: redirect to client with `?error=...`."""
+class AuthorizationResponseError:
+    """RFC 6749 §4.1.2.1 Error Response, delivered to the client via redirect."""
 
     redirect_uri: str
     error: str
@@ -75,10 +76,10 @@ class AuthorizeRedirectError:
 
 
 AuthorizeResult = (
-    AuthorizeRedirectToLogin
-    | AuthorizeShowConsent
-    | AuthorizeRenderError
-    | AuthorizeRedirectError
+    AuthenticationRequired
+    | ConsentRequired
+    | AuthorizationRequestError
+    | AuthorizationResponseError
 )
 
 
@@ -87,6 +88,5 @@ class AuthorizeUseCase(Protocol):
         self,
         *,
         request: AuthorizeRequest,
-        session_cookie: str | None,
-        full_request_url: str,
+        session_token: str | None,
     ) -> AuthorizeResult: ...

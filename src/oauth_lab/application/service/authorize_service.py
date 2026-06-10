@@ -10,12 +10,12 @@ OAuth 2.1 / PKCE is mandatory: code_challenge + S256 method required.
 from __future__ import annotations
 
 from oauth_lab.application.port.inbound.authorize_use_case import (
-    AuthorizeRedirectError,
-    AuthorizeRedirectToLogin,
-    AuthorizeRenderError,
+    AuthenticationRequired,
+    AuthorizationRequestError,
+    AuthorizationResponseError,
     AuthorizeRequest,
     AuthorizeResult,
-    AuthorizeShowConsent,
+    ConsentRequired,
 )
 from oauth_lab.application.port.outbound.client_repository import ClientRepository
 from oauth_lab.application.port.outbound.session_signer import SessionSigner
@@ -42,23 +42,22 @@ class AuthorizeService:
         self,
         *,
         request: AuthorizeRequest,
-        session_cookie: str | None,
-        full_request_url: str,
+        session_token: str | None,
     ) -> AuthorizeResult:
         # 1. Validate client_id — non-redirectable.
         if not request.client_id:
-            return AuthorizeRenderError("invalid_request", "client_id is required")
+            return AuthorizationRequestError("invalid_request", "client_id is required")
         client = await self._clients.find_by_id(ClientId(request.client_id))
         if client is None:
-            return AuthorizeRenderError(
+            return AuthorizationRequestError(
                 "invalid_client", f"unknown client_id: {request.client_id}"
             )
 
         # 2. Validate redirect_uri — non-redirectable (RFC 6749 §4.1.2.1, RFC 9700 §4.1.3).
         if not request.redirect_uri:
-            return AuthorizeRenderError("invalid_request", "redirect_uri is required")
+            return AuthorizationRequestError("invalid_request", "redirect_uri is required")
         if request.redirect_uri not in client.redirect_uris:
-            return AuthorizeRenderError(
+            return AuthorizationRequestError(
                 "invalid_request",
                 "redirect_uri does not match any registered URI for this client",
             )
@@ -68,7 +67,7 @@ class AuthorizeService:
 
         # 3. response_type — only `code` allowed in OAuth 2.1.
         if request.response_type != "code":
-            return AuthorizeRedirectError(
+            return AuthorizationResponseError(
                 redirect_uri=redirect_uri,
                 error="unsupported_response_type",
                 error_description="only response_type=code is supported (OAuth 2.1)",
@@ -77,7 +76,7 @@ class AuthorizeService:
 
         # 4. PKCE — mandatory in OAuth 2.1 + RFC 9700 §4.8.
         if not request.code_challenge:
-            return AuthorizeRedirectError(
+            return AuthorizationResponseError(
                 redirect_uri=redirect_uri,
                 error="invalid_request",
                 error_description="code_challenge is required (PKCE mandatory)",
@@ -87,7 +86,7 @@ class AuthorizeService:
         try:
             pkce_challenge = PKCEChallenge(value=request.code_challenge, method=method)
         except ValueError as exc:
-            return AuthorizeRedirectError(
+            return AuthorizationResponseError(
                 redirect_uri=redirect_uri,
                 error="invalid_request",
                 error_description=str(exc),
@@ -98,7 +97,7 @@ class AuthorizeService:
         try:
             requested_scope = ScopeSet.parse(request.scope)
         except ValueError as exc:
-            return AuthorizeRedirectError(
+            return AuthorizationResponseError(
                 redirect_uri=redirect_uri,
                 error="invalid_scope",
                 error_description=str(exc),
@@ -107,7 +106,7 @@ class AuthorizeService:
         if not requested_scope.is_empty() and not requested_scope.is_subset_of(
             client.allowed_scopes
         ):
-            return AuthorizeRedirectError(
+            return AuthorizationResponseError(
                 redirect_uri=redirect_uri,
                 error="invalid_scope",
                 error_description="requested scope contains values not allowed for this client",
@@ -118,7 +117,7 @@ class AuthorizeService:
 
         # 6. Client must support authorization_code grant.
         if not client.supports_grant(GrantType.AUTHORIZATION_CODE):
-            return AuthorizeRedirectError(
+            return AuthorizationResponseError(
                 redirect_uri=redirect_uri,
                 error="unauthorized_client",
                 error_description="client is not allowed to use authorization_code grant",
@@ -126,15 +125,15 @@ class AuthorizeService:
             )
 
         # 7. Session check — drive UI decision.
-        session = self._session_signer.verify(session_cookie)
+        session = self._session_signer.verify(session_token)
         if session is None:
-            return AuthorizeRedirectToLogin(next_authorize_url=full_request_url)
+            return AuthenticationRequired()
 
         user = await self._users.find_by_sub(session.user_sub)
         if user is None:
-            return AuthorizeRedirectToLogin(next_authorize_url=full_request_url)
+            return AuthenticationRequired()
 
-        return AuthorizeShowConsent(
+        return ConsentRequired(
             client=client,
             user=user,
             requested_scope=requested_scope,

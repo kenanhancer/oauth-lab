@@ -1,30 +1,33 @@
 """`GET /authorize` — entry point of the browser flow.
 
 Dispatches `AuthorizeUseCase` results to one of four HTTP responses:
-- `AuthorizeRedirectToLogin` → 303 to `/login?next=<authorize_url>`
-- `AuthorizeShowConsent` → 200 HTML consent page
-- `AuthorizeRenderError` → 400 HTML error page (RFC 6749 §4.1.2.1)
-- `AuthorizeRedirectError` → 303 to client redirect_uri with error params
+- `AuthenticationRequired` → 303 to `/login?next=<authorize_url>`
+- `ConsentRequired` → 200 HTML consent page
+- `AuthorizationRequestError` → 400 HTML error page (RFC 6749 §4.1.2.1)
+- `AuthorizationResponseError` → 303 to client redirect_uri with error params
 """
 
 from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Annotated
-from urllib.parse import quote_plus, urlencode
+from urllib.parse import quote_plus
 
 from fastapi import APIRouter, Cookie, Request
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 
+from oauth_lab.adapter.inbound.web.authorization_response import (
+    encode_authorization_response,
+)
 from oauth_lab.adapter.inbound.web.session_constants import SESSION_COOKIE_NAME
 from oauth_lab.adapter.inbound.web.template_renderer import TemplateRenderer
 from oauth_lab.application.port.inbound.authorize_use_case import (
-    AuthorizeRedirectError,
-    AuthorizeRedirectToLogin,
-    AuthorizeRenderError,
+    AuthenticationRequired,
+    AuthorizationRequestError,
+    AuthorizationResponseError,
     AuthorizeRequest,
-    AuthorizeShowConsent,
     AuthorizeUseCase,
+    ConsentRequired,
 )
 
 
@@ -56,15 +59,16 @@ def build_router(
                 code_challenge=qp.get("code_challenge"),
                 code_challenge_method=qp.get("code_challenge_method"),
             ),
-            session_cookie=session_cookie,
-            full_request_url=str(request.url),
+            session_token=session_cookie,
         )
 
-        if isinstance(result, AuthorizeRedirectToLogin):
-            next_url = quote_plus(result.next_authorize_url)
+        if isinstance(result, AuthenticationRequired):
+            # Send the user to /login, carrying this authorize URL in `next`
+            # so the flow resumes after authentication.
+            next_url = quote_plus(str(request.url))
             return RedirectResponse(url=f"/login?next={next_url}", status_code=303)
 
-        if isinstance(result, AuthorizeShowConsent):
+        if isinstance(result, ConsentRequired):
             html = templates.render(
                 "consent.html",
                 client_id=str(result.client.id),
@@ -79,7 +83,7 @@ def build_router(
             )
             return HTMLResponse(content=html, status_code=200)
 
-        if isinstance(result, AuthorizeRenderError):
+        if isinstance(result, AuthorizationRequestError):
             html = templates.render(
                 "error.html",
                 error_code=result.error_code,
@@ -87,17 +91,17 @@ def build_router(
             )
             return HTMLResponse(content=html, status_code=400)
 
-        if isinstance(result, AuthorizeRedirectError):
-            params: dict[str, str] = {
-                "error": result.error,
-                "error_description": result.error_description,
-                "iss": issuer,                                               # RFC 9207
-            }
-            if result.state:
-                params["state"] = result.state
-            sep = "&" if "?" in result.redirect_uri else "?"
+        if isinstance(result, AuthorizationResponseError):
             return RedirectResponse(
-                url=result.redirect_uri + sep + urlencode(params),
+                url=encode_authorization_response(
+                    result.redirect_uri,
+                    {
+                        "error": result.error,
+                        "error_description": result.error_description,
+                    },
+                    state=result.state,
+                    issuer=issuer,
+                ),
                 status_code=303,
             )
 
