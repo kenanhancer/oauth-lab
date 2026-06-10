@@ -24,6 +24,7 @@ from oauth_lab.adapter.inbound.web.template_renderer import TemplateRenderer
 from oauth_lab.adapter.outbound.crypto.argon2_secret_hasher import Argon2SecretHasher
 from oauth_lab.adapter.outbound.crypto.id_token_issuer import JwtIdTokenIssuer
 from oauth_lab.adapter.outbound.crypto.jwks_provider import RsaJwksProvider, rsa_jwk_thumbprint
+from oauth_lab.adapter.outbound.crypto.jwt_access_token_verifier import JwtAccessTokenVerifier
 from oauth_lab.adapter.outbound.crypto.jwt_subject_token_validator import (
     JwtSubjectTokenValidator,
 )
@@ -89,6 +90,7 @@ from oauth_lab.adapter.outbound.time.system_clock import SystemClock
 from oauth_lab.application.port.inbound.authorize_use_case import AuthorizeUseCase
 from oauth_lab.application.port.inbound.consent_use_case import ConsentUseCase
 from oauth_lab.application.port.inbound.device_consent_use_case import DeviceConsentUseCase
+from oauth_lab.application.port.inbound.get_user_info_use_case import GetUserInfoUseCase
 from oauth_lab.application.port.inbound.issue_token_use_case import IssueTokenUseCase
 from oauth_lab.application.port.inbound.login_use_case import LoginUseCase
 from oauth_lab.application.port.inbound.lookup_device_code_use_case import (
@@ -100,6 +102,7 @@ from oauth_lab.application.port.inbound.request_device_authorization_use_case im
 from oauth_lab.application.port.inbound.seed_demo_data_use_case import SeedDemoDataUseCase
 
 # Application — outbound ports
+from oauth_lab.application.port.outbound.access_token_verifier import AccessTokenVerifier
 from oauth_lab.application.port.outbound.assertion_verifier import AssertionVerifier
 from oauth_lab.application.port.outbound.authorization_code_repository import (
     AuthorizationCodeRepository,
@@ -133,6 +136,7 @@ from oauth_lab.application.service.client_auth.client_secret_post_authenticator 
 from oauth_lab.application.service.client_auth.none_authenticator import NoneAuthenticator
 from oauth_lab.application.service.consent_service import ConsentService
 from oauth_lab.application.service.device_consent_service import DeviceConsentService
+from oauth_lab.application.service.get_user_info_service import GetUserInfoService
 from oauth_lab.application.service.grant.authorization_code_grant import AuthorizationCodeGrant
 from oauth_lab.application.service.grant.client_credentials_grant import ClientCredentialsGrant
 from oauth_lab.application.service.grant.device_code_grant import DeviceCodeGrant
@@ -216,6 +220,7 @@ class Container:
     request_device_authorization: RequestDeviceAuthorizationUseCase
     lookup_device_code: LookupDeviceCodeUseCase
     device_consent: DeviceConsentUseCase
+    get_user_info: GetUserInfoUseCase
     seed_demo_data: SeedDemoDataUseCase
 
     # Inbound-adapter shared tooling (not port-abstracted — only used by adapter/in/web/)
@@ -324,6 +329,12 @@ async def build_container(
         algorithm=settings.jwt_algorithm,
     )
 
+    access_token_verifier: AccessTokenVerifier = JwtAccessTokenVerifier(
+        issuer=settings.issuer,
+        public_key_pem=public_key_pem_from_private(signing_key_pem),
+        algorithm=settings.jwt_algorithm,
+    )
+
     scope_validator = ScopeValidator()
     pkce_verifier = PKCEVerifier()
 
@@ -425,6 +436,10 @@ async def build_container(
         device_codes=repos.device_codes,
         clock=clock,
     )
+    get_user_info: GetUserInfoUseCase = GetUserInfoService(
+        token_verifier=access_token_verifier,
+        users=repos.users,
+    )
     seed_demo_data: SeedDemoDataUseCase = SeedDemoDataService(
         clients=repos.clients,
         users=repos.users,
@@ -453,6 +468,7 @@ async def build_container(
         request_device_authorization=request_device_authorization,
         lookup_device_code=lookup_device_code,
         device_consent=device_consent,
+        get_user_info=get_user_info,
         seed_demo_data=seed_demo_data,
         templates=templates,
         signing_key_pem=signing_key_pem,

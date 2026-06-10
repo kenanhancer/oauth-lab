@@ -61,6 +61,19 @@ class AccessDenied(OAuthError):
     error_code = "access_denied"
 
 
+# RFC 6750 §3.1 — protected-resource error vocabulary (not RFC 6749 §5.2).
+class InvalidToken(OAuthError):                               # noqa: N818 — RFC error vocabulary
+    """The access token presented to a protected resource is expired,
+    revoked, malformed, or otherwise invalid (RFC 6750 §3.1).
+
+    Raised by resource endpoints (`/userinfo`), never by the token
+    endpoint — there a bad *grant* is `invalid_grant` and bad *client
+    credentials* are `invalid_client`.
+    """
+
+    error_code = "invalid_token"
+
+
 # RFC 8628 § 3.5 — device flow polling responses.
 class AuthorizationPending(OAuthError):
     """User has not yet approved (or denied) the device authorization."""
