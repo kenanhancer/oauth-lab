@@ -90,6 +90,9 @@ from oauth_lab.adapter.outbound.time.system_clock import SystemClock
 from oauth_lab.application.port.inbound.authorize_use_case import AuthorizeUseCase
 from oauth_lab.application.port.inbound.consent_use_case import ConsentUseCase
 from oauth_lab.application.port.inbound.device_consent_use_case import DeviceConsentUseCase
+from oauth_lab.application.port.inbound.get_server_metadata_use_case import (
+    GetServerMetadataUseCase,
+)
 from oauth_lab.application.port.inbound.get_user_info_use_case import GetUserInfoUseCase
 from oauth_lab.application.port.inbound.issue_token_use_case import IssueTokenUseCase
 from oauth_lab.application.port.inbound.login_use_case import LoginUseCase
@@ -151,6 +154,7 @@ from oauth_lab.application.service.request_device_authorization_service import (
     RequestDeviceAuthorizationService,
 )
 from oauth_lab.application.service.seed_demo_data_service import SeedDemoDataService
+from oauth_lab.application.service.server_metadata_service import ServerMetadataService
 from oauth_lab.config import Settings
 
 # Domain — pure services (no I/O)
@@ -221,6 +225,7 @@ class Container:
     lookup_device_code: LookupDeviceCodeUseCase
     device_consent: DeviceConsentUseCase
     get_user_info: GetUserInfoUseCase
+    server_metadata: GetServerMetadataUseCase
     seed_demo_data: SeedDemoDataUseCase
 
     # Inbound-adapter shared tooling (not port-abstracted — only used by adapter/in/web/)
@@ -440,6 +445,13 @@ async def build_container(
         token_verifier=access_token_verifier,
         users=repos.users,
     )
+    server_metadata: GetServerMetadataUseCase = ServerMetadataService(
+        issuer=settings.issuer,
+        grants=grants,
+        client_auth=client_auth,
+        scopes_supported=["openid", "profile", "email", "read", "write"],
+        id_token_signing_alg=settings.jwt_algorithm,
+    )
     seed_demo_data: SeedDemoDataUseCase = SeedDemoDataService(
         clients=repos.clients,
         users=repos.users,
@@ -469,6 +481,7 @@ async def build_container(
         lookup_device_code=lookup_device_code,
         device_consent=device_consent,
         get_user_info=get_user_info,
+        server_metadata=server_metadata,
         seed_demo_data=seed_demo_data,
         templates=templates,
         signing_key_pem=signing_key_pem,

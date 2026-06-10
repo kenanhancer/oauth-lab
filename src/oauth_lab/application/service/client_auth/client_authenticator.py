@@ -15,6 +15,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from dataclasses import dataclass
+from typing import ClassVar
 
 from oauth_lab.application.port.inbound.issue_token_use_case import ClientCredentials
 from oauth_lab.application.port.outbound.client_repository import ClientRepository
@@ -52,6 +53,10 @@ class AuthenticatedClient:
 class ClientAuthenticator(ABC):
     """Strategy interface for one specific token_endpoint_auth_method."""
 
+    #: The RFC 8414 §2 `token_endpoint_auth_methods_supported` value this
+    #: strategy implements. Each concrete authenticator declares its own.
+    method: ClassVar[ClientAuthMethod]
+
     @abstractmethod
     def can_handle(self, creds: ClientCredentials) -> bool: ...
 
@@ -69,6 +74,15 @@ class ClientCredentialsPipeline:
     ) -> None:
         self._authenticators = list(authenticators)
         self._clients = clients
+
+    def supported_methods(self) -> list[str]:
+        """The auth methods this AS actually accepts at the token endpoint.
+
+        Source of truth for RFC 8414 §2 `token_endpoint_auth_methods_supported`
+        — derived from the configured strategies, so discovery can never
+        drift from what the pipeline enforces.
+        """
+        return [auth.method.value for auth in self._authenticators]
 
     async def authenticate(self, creds: ClientCredentials) -> AuthenticatedClient:
         for auth in self._authenticators:

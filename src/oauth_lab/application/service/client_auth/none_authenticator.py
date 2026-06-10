@@ -22,6 +22,8 @@ from oauth_lab.domain.model.errors import InvalidClient
 
 
 class NoneAuthenticator(ClientAuthenticator):
+    method = ClientAuthMethod.NONE
+
     def __init__(self, clients: ClientRepository) -> None:
         self._clients = clients
 
@@ -38,6 +40,6 @@ class NoneAuthenticator(ClientAuthenticator):
         client = await self._clients.find_by_id(ClientId(creds.form_client_id))
         if client is None:
             raise InvalidClient("unknown client_id")
-        if client.token_endpoint_auth_method != ClientAuthMethod.NONE:
+        if client.token_endpoint_auth_method != self.method:
             raise InvalidClient("client requires authentication")
-        return AuthenticatedClient(client=client, auth_method=ClientAuthMethod.NONE)
+        return AuthenticatedClient(client=client, auth_method=self.method)

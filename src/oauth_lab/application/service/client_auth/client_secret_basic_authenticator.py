@@ -20,6 +20,8 @@ from oauth_lab.domain.model.errors import InvalidClient
 
 
 class ClientSecretBasicAuthenticator(ClientAuthenticator):
+    method = ClientAuthMethod.CLIENT_SECRET_BASIC
+
     def __init__(self, clients: ClientRepository, secret_hasher: SecretHasher) -> None:
         self._clients = clients
         self._hasher = secret_hasher
@@ -38,11 +40,11 @@ class ClientSecretBasicAuthenticator(ClientAuthenticator):
             # from "wrong secret" by latency.
             self._hasher.dummy_verify()
             raise InvalidClient("unknown client_id")
-        if client.token_endpoint_auth_method != ClientAuthMethod.CLIENT_SECRET_BASIC:
+        if client.token_endpoint_auth_method != self.method:
             raise InvalidClient("client is not configured for client_secret_basic")
         self._verify_secret(client, client_secret)
 
-        return AuthenticatedClient(client=client, auth_method=ClientAuthMethod.CLIENT_SECRET_BASIC)
+        return AuthenticatedClient(client=client, auth_method=self.method)
 
     @staticmethod
     def _decode(header_value: str) -> tuple[str, str]:

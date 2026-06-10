@@ -17,6 +17,15 @@ class GrantRegistry:
     def __init__(self, grants: Iterable[GrantStrategy]) -> None:
         self._by_type: dict[GrantType, GrantStrategy] = {g.grant_type: g for g in grants}
 
+    def supported_grant_types(self) -> list[str]:
+        """The `grant_type` values this AS actually implements.
+
+        Source of truth for RFC 8414 §2 `grant_types_supported` — derived
+        from the registered strategies (registration/insertion order), so
+        discovery can never drift from the token endpoint's behaviour.
+        """
+        return [gt.value for gt in self._by_type]
+
     def resolve(self, grant_type: str | None) -> GrantStrategy:
         if grant_type is None:
             raise UnsupportedGrantType("grant_type is required")

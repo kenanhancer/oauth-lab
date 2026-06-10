@@ -8,80 +8,45 @@ Two `.well-known` documents:
   adds OIDC-specific fields (`userinfo_endpoint`, `id_token_signing_alg_values_supported`,
   `subject_types_supported`).
 
-Values are derived from `settings.issuer` and the static set of grants,
-auth methods, and scopes we support. A real implementation would
-introspect the `GrantRegistry` and `ClientCredentialsPipeline` to derive
-the lists; for `oauth-lab` we hard-code them.
+Pure adapter: the documents are assembled by `GetServerMetadataUseCase`,
+which introspects the grant registry and client-auth pipeline; this
+module only serialises them.
 """
 
 from __future__ import annotations
 
-from fastapi import APIRouter, Request
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Request
 from fastapi.responses import JSONResponse
 
+from oauth_lab.application.port.inbound.get_server_metadata_use_case import (
+    GetServerMetadataUseCase,
+)
 from oauth_lab.container import Container
 
 router = APIRouter()
 
 
-def _base_metadata(container: Container) -> dict[str, object]:
-    issuer = container.settings.issuer.rstrip("/")
-    return {
-        "issuer": issuer,
-        "authorization_endpoint": f"{issuer}/authorize",
-        "token_endpoint": f"{issuer}/token",
-        "jwks_uri": f"{issuer}/jwks",
-        "device_authorization_endpoint": f"{issuer}/device_authorization",        # RFC 8628 §4
-        "response_types_supported": ["code"],                                     # OAuth 2.1
-        "grant_types_supported": [
-            "authorization_code",
-            "client_credentials",
-            "refresh_token",
-            "urn:ietf:params:oauth:grant-type:device_code",                       # RFC 8628
-            "urn:ietf:params:oauth:grant-type:jwt-bearer",                        # RFC 7523
-            "urn:ietf:params:oauth:grant-type:token-exchange",                    # RFC 8693
-        ],
-        "code_challenge_methods_supported": ["S256"],                             # plain is rejected
-        "token_endpoint_auth_methods_supported": [
-            "client_secret_basic",
-            "client_secret_post",
-            "none",
-        ],
-        "scopes_supported": ["openid", "profile", "email", "read", "write"],
-    }
+def _container(request: Request) -> Container:
+    return request.app.state.container                                              # type: ignore[no-any-return]
+
+
+def _use_case(container: Annotated[Container, Depends(_container)]) -> GetServerMetadataUseCase:
+    return container.server_metadata
 
 
 @router.get("/.well-known/oauth-authorization-server", tags=["Discovery"])
-async def oauth_authorization_server(request: Request) -> JSONResponse:
+async def oauth_authorization_server(
+    use_case: Annotated[GetServerMetadataUseCase, Depends(_use_case)],
+) -> JSONResponse:
     """RFC 8414 OAuth 2.0 Authorization Server Metadata."""
-    container: Container = request.app.state.container
-    return JSONResponse(content=_base_metadata(container))
+    return JSONResponse(content=use_case.oauth_metadata())
 
 
 @router.get("/.well-known/openid-configuration", tags=["Discovery"])
-async def openid_configuration(request: Request) -> JSONResponse:
+async def openid_configuration(
+    use_case: Annotated[GetServerMetadataUseCase, Depends(_use_case)],
+) -> JSONResponse:
     """OIDC Discovery 1.0 — same as RFC 8414 plus OIDC-specific entries."""
-    container: Container = request.app.state.container
-    issuer = container.settings.issuer.rstrip("/")
-    metadata = _base_metadata(container)
-    metadata.update(
-        {
-            "userinfo_endpoint": f"{issuer}/userinfo",
-            "subject_types_supported": ["public"],
-            "id_token_signing_alg_values_supported": [container.settings.jwt_algorithm],
-            "claims_supported": [
-                "sub",
-                "iss",
-                "aud",
-                "exp",
-                "iat",
-                "auth_time",
-                "nonce",
-                "at_hash",
-                "preferred_username",
-                "email",
-                "email_verified",
-            ],
-        }
-    )
-    return JSONResponse(content=metadata)
+    return JSONResponse(content=use_case.openid_metadata())

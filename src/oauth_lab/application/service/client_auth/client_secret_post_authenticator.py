@@ -16,6 +16,8 @@ from oauth_lab.domain.model.errors import InvalidClient
 
 
 class ClientSecretPostAuthenticator(ClientAuthenticator):
+    method = ClientAuthMethod.CLIENT_SECRET_POST
+
     def __init__(self, clients: ClientRepository, secret_hasher: SecretHasher) -> None:
         self._clients = clients
         self._hasher = secret_hasher
@@ -38,11 +40,11 @@ class ClientSecretPostAuthenticator(ClientAuthenticator):
             # from "wrong secret" by latency.
             self._hasher.dummy_verify()
             raise InvalidClient("unknown client_id")
-        if client.token_endpoint_auth_method != ClientAuthMethod.CLIENT_SECRET_POST:
+        if client.token_endpoint_auth_method != self.method:
             raise InvalidClient("client is not configured for client_secret_post")
         self._verify_secret(client, creds.form_client_secret)
 
-        return AuthenticatedClient(client=client, auth_method=ClientAuthMethod.CLIENT_SECRET_POST)
+        return AuthenticatedClient(client=client, auth_method=self.method)
 
     def _verify_secret(self, client: Client, secret_plaintext: str) -> None:
         if client.secret_hash is None:
