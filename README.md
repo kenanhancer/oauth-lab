@@ -1,8 +1,9 @@
 # oauth-lab
 
-A production-grade OAuth 2.1 authorization server, generated from the
-[`oauth-openapi`](../oauth-openapi/) specification and built with hexagonal
-architecture, SOLID principles, and standard GoF design patterns.
+A production-grade OAuth 2.1 authorization server, built against the
+[`oauth-openapi`](https://github.com/kenanhancer/oauth-openapi) specification
+with hexagonal architecture, SOLID principles, and standard GoF design
+patterns.
 
 This is the **runnable implementation** of the contract defined in
 `oauth-openapi.yaml`. The spec is the canvas; this is the painting.
