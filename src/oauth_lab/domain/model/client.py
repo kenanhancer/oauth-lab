@@ -22,7 +22,7 @@ from oauth_lab.domain.model.scope import ScopeSet
 @dataclass(frozen=True, slots=True)
 class Client:
     id: ClientId
-    secret_hash: bytes | None                    # None for public clients
+    secret_hash: bytes | None  # None for public clients
     token_endpoint_auth_method: ClientAuthMethod
     allowed_grant_types: frozenset[GrantType]
     allowed_scopes: ScopeSet

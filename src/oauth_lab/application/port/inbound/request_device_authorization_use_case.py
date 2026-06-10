@@ -23,6 +23,4 @@ class DeviceAuthorizationResponse:
 
 
 class RequestDeviceAuthorizationUseCase(Protocol):
-    async def execute(
-        self, request: DeviceAuthorizationRequest
-    ) -> DeviceAuthorizationResponse: ...
+    async def execute(self, request: DeviceAuthorizationRequest) -> DeviceAuthorizationResponse: ...

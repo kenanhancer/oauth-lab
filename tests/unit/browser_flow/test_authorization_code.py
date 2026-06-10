@@ -47,7 +47,7 @@ class TestAuthorizationCodeEntity:
         code = _make_code()
         consumed = code.consume(_BEFORE_EXPIRY)
         assert consumed.consumed_at == _BEFORE_EXPIRY
-        assert code.consumed_at is None                              # immutable: original untouched
+        assert code.consumed_at is None  # immutable: original untouched
 
     def test_consume_twice_raises_replay(self) -> None:
         consumed = _make_code(consumed_at=_BEFORE_EXPIRY)

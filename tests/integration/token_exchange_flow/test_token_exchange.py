@@ -193,9 +193,7 @@ class TestTokenExchangeErrorPaths:
         assert resp.status_code == 400
         assert resp.json()["error"] == "invalid_request"
 
-    async def test_client_without_token_exchange_rejected(
-        self, jwt_client: AsyncClient
-    ) -> None:
+    async def test_client_without_token_exchange_rejected(self, jwt_client: AsyncClient) -> None:
         # demo-client only has client_credentials, not token-exchange
         subject_token = await _mint_initial_token(jwt_client)
         resp = await jwt_client.post(

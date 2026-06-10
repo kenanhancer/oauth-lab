@@ -19,7 +19,7 @@ from oauth_lab.domain.model.device_code import DeviceCode
 class InMemoryDeviceCodeRepository:
     def __init__(self) -> None:
         self._by_device_code: dict[str, DeviceCode] = {}
-        self._by_user_code: dict[str, str] = {}                  # user_code → device_code
+        self._by_user_code: dict[str, str] = {}  # user_code → device_code
         self._lock = asyncio.Lock()
 
     async def save(self, code: DeviceCode) -> None:

@@ -24,6 +24,6 @@ def encode_authorization_response(
     query = dict(params)
     if state:
         query["state"] = state
-    query["iss"] = issuer                                                # RFC 9207
+    query["iss"] = issuer  # RFC 9207
     separator = "&" if "?" in redirect_uri else "?"
     return redirect_uri + separator + urlencode(query, quote_via=quote)

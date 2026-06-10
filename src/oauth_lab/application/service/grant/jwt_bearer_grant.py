@@ -99,7 +99,7 @@ class JwtBearerGrant(GrantStrategy):
 
         return TokenIssuanceResult(
             access_token=issued.value,
-            token_type="Bearer",                                                            # noqa: S106
+            token_type="Bearer",  # noqa: S106
             expires_in=issued.expires_in_seconds,
             scope=granted_scope,
         )

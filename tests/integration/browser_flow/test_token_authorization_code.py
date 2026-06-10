@@ -214,7 +214,7 @@ class TestPostTokenAuthorizationCode:
     ) -> None:
         expired = _make_code(
             value="expired-code",
-            expires_in=timedelta(seconds=-1),                              # already expired
+            expires_in=timedelta(seconds=-1),  # already expired
         )
         await container.auth_codes.save(expired)
         resp = await http_client.post(

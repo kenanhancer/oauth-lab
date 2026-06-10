@@ -31,6 +31,6 @@ class InMemoryAuthorizationCodeRepository:
             code = self._store.get(value)
             if code is None:
                 raise InvalidGrant("authorization code not found")
-            consumed = code.consume(now)                          # raises if expired / replayed
+            consumed = code.consume(now)  # raises if expired / replayed
             self._store[value] = consumed
             return consumed

@@ -43,10 +43,10 @@ class ServerMetadataService:
             "authorization_endpoint": f"{issuer}/authorize",
             "token_endpoint": f"{issuer}/token",
             "jwks_uri": f"{issuer}/jwks",
-            "device_authorization_endpoint": f"{issuer}/device_authorization",    # RFC 8628 §4
-            "response_types_supported": ["code"],                                 # OAuth 2.1
+            "device_authorization_endpoint": f"{issuer}/device_authorization",  # RFC 8628 §4
+            "response_types_supported": ["code"],  # OAuth 2.1
             "grant_types_supported": self._grants.supported_grant_types(),
-            "code_challenge_methods_supported": ["S256"],                        # plain is rejected
+            "code_challenge_methods_supported": ["S256"],  # plain is rejected
             "token_endpoint_auth_methods_supported": self._client_auth.supported_methods(),
             "scopes_supported": self._scopes_supported,
             # RFC 9207 §3: an AS that emits `iss` in authorization responses

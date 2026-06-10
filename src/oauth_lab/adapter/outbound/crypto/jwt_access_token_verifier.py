@@ -34,7 +34,7 @@ class JwtAccessTokenVerifier:
                 issuer=self._issuer,
                 options={
                     "require": ["exp", "sub"],
-                    "verify_aud": False,                      # aud names the resource, not the AS
+                    "verify_aud": False,  # aud names the resource, not the AS
                 },
             )
         except jwt.PyJWTError as exc:

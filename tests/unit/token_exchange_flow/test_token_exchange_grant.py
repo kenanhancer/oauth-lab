@@ -154,16 +154,12 @@ def _request(
 
 
 class TestTokenExchangeGrant:
-    async def test_happy_path_downscope(
-        self, keypair: tuple[bytes, bytes]
-    ) -> None:
+    async def test_happy_path_downscope(self, keypair: tuple[bytes, bytes]) -> None:
         priv, _pub = keypair
         grant, issuer = _make_grant(keypair)
         subject_jwt = _sign_subject_token(priv, scope="read write")
 
-        result = await grant.execute(
-            _request(subject_jwt, requested_scope="read"), _make_client()
-        )
+        result = await grant.execute(_request(subject_jwt, requested_scope="read"), _make_client())
 
         assert result.token_type == "Bearer"
         assert result.issued_token_type == _ACCESS_TOKEN_TYPE
@@ -194,7 +190,7 @@ class TestTokenExchangeGrant:
     ) -> None:
         priv, _pub = keypair
         grant, issuer = _make_grant(keypair)
-        subject_jwt = _sign_subject_token(priv, scope="read")          # subject has only read
+        subject_jwt = _sign_subject_token(priv, scope="read")  # subject has only read
 
         await grant.execute(_request(subject_jwt), _make_client())
 
@@ -212,11 +208,9 @@ class TestTokenExchangeGrant:
         subject_jwt = _sign_subject_token(priv, scope="read")
 
         with pytest.raises((InvalidScope, OAuthError)):
-            await grant.execute(
-                _request(subject_jwt, requested_scope="write"), _make_client()
-            )
+            await grant.execute(_request(subject_jwt, requested_scope="write"), _make_client())
 
-        assert issuer.calls == []                                       # nothing was issued
+        assert issuer.calls == []  # nothing was issued
 
     async def test_missing_subject_token_raises_invalid_request(
         self, keypair: tuple[bytes, bytes]
@@ -269,9 +263,7 @@ class TestTokenExchangeGrant:
                 _make_client(),
             )
 
-    async def test_expired_subject_token_raises(
-        self, keypair: tuple[bytes, bytes]
-    ) -> None:
+    async def test_expired_subject_token_raises(self, keypair: tuple[bytes, bytes]) -> None:
         priv, _pub = keypair
         grant, _issuer = _make_grant(keypair)
         expired = _sign_subject_token(priv, exp_delta=timedelta(seconds=-30))

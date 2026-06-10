@@ -89,7 +89,7 @@ class TestEndToEndBrowserFlow:
         assert "text/html" in resp.headers["content-type"]
         assert "Authorize" in resp.text
         assert DEMO_PUBLIC_CLIENT_ID in resp.text
-        assert "read" in resp.text                                       # requested scope rendered
+        assert "read" in resp.text  # requested scope rendered
         csrf = _csrf(resp.text)
 
         # Step 4 — POST /consent (approve) ⇒ 303 to redirect_uri?code=...&state=...
@@ -136,9 +136,7 @@ class TestEndToEndBrowserFlow:
 
 
 class TestLoginEdgeCases:
-    async def test_wrong_password_returns_401_no_cookie(
-        self, http_client: AsyncClient
-    ) -> None:
+    async def test_wrong_password_returns_401_no_cookie(self, http_client: AsyncClient) -> None:
         resp = await http_client.post(
             "/login",
             data={
@@ -170,9 +168,7 @@ class TestConsentEdgeCases:
         )
         return resp.cookies["oauth_lab_session"]
 
-    async def test_deny_redirects_with_access_denied(
-        self, http_client: AsyncClient
-    ) -> None:
+    async def test_deny_redirects_with_access_denied(self, http_client: AsyncClient) -> None:
         cookie = await self._sign_in(http_client)
         # Render the consent page (with the session) to obtain the CSRF token.
         page = await http_client.get(

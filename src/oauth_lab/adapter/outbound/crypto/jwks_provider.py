@@ -35,9 +35,7 @@ def rsa_jwk_thumbprint(private_key_pem: bytes) -> str:
     """
     private_key = serialization.load_pem_private_key(private_key_pem, password=None)
     public_key = cast(RSAPublicKey, private_key.public_key())
-    jwk: dict[str, Any] = json.loads(
-        jwt.algorithms.RSAAlgorithm.to_jwk(public_key, as_dict=False)
-    )
+    jwk: dict[str, Any] = json.loads(jwt.algorithms.RSAAlgorithm.to_jwk(public_key, as_dict=False))
     canonical = json.dumps(
         {"e": jwk["e"], "kty": jwk["kty"], "n": jwk["n"]},
         separators=(",", ":"),

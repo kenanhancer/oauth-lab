@@ -160,7 +160,7 @@ from oauth_lab.domain.service.scope_validator import ScopeValidator
 
 _logger = logging.getLogger("oauth_lab")
 
-_DEV_SESSION_SECRET = "dev-only-change-me"                 # noqa: S105 — matches Settings default (not a real secret)
+_DEV_SESSION_SECRET = "dev-only-change-me"  # noqa: S105 — matches Settings default (not a real secret)
 _LOCALHOST_ISSUER_PREFIXES = ("http://localhost", "http://127.0.0.1")
 
 
@@ -329,55 +329,57 @@ async def build_container(
     scope_validator = ScopeValidator()
     pkce_verifier = PKCEVerifier()
 
-    grants = GrantRegistry([
-        ClientCredentialsGrant(
-            token_issuer=token_issuer,
-            scope_validator=scope_validator,
-            access_token_ttl_seconds=settings.access_token_ttl_seconds,
-        ),
-        AuthorizationCodeGrant(
-            token_issuer=token_issuer,
-            id_token_issuer=id_token_issuer,
-            auth_codes=repos.auth_codes,
-            refresh_tokens=repos.refresh_tokens,
-            random_source=random_source,
-            pkce_verifier=pkce_verifier,
-            clock=clock,
-            access_token_ttl_seconds=settings.access_token_ttl_seconds,
-            refresh_token_ttl_seconds=settings.refresh_token_ttl_seconds,
-        ),
-        RefreshTokenGrant(
-            token_issuer=token_issuer,
-            refresh_tokens=repos.refresh_tokens,
-            random_source=random_source,
-            clock=clock,
-            access_token_ttl_seconds=settings.access_token_ttl_seconds,
-            refresh_token_ttl_seconds=settings.refresh_token_ttl_seconds,
-        ),
-        DeviceCodeGrant(
-            token_issuer=token_issuer,
-            device_codes=repos.device_codes,
-            refresh_tokens=repos.refresh_tokens,
-            random_source=random_source,
-            clock=clock,
-            access_token_ttl_seconds=settings.access_token_ttl_seconds,
-            refresh_token_ttl_seconds=settings.refresh_token_ttl_seconds,
-        ),
-        JwtBearerGrant(
-            token_issuer=token_issuer,
-            trusted_issuers=repos.trusted_issuers,
-            assertion_verifier=assertion_verifier,
-            scope_validator=scope_validator,
-            expected_audience=f"{settings.issuer.rstrip('/')}/token",
-            access_token_ttl_seconds=settings.access_token_ttl_seconds,
-        ),
-        TokenExchangeGrant(
-            token_issuer=token_issuer,
-            subject_token_validator=subject_token_validator,
-            scope_validator=scope_validator,
-            access_token_ttl_seconds=settings.access_token_ttl_seconds,
-        ),
-    ])
+    grants = GrantRegistry(
+        [
+            ClientCredentialsGrant(
+                token_issuer=token_issuer,
+                scope_validator=scope_validator,
+                access_token_ttl_seconds=settings.access_token_ttl_seconds,
+            ),
+            AuthorizationCodeGrant(
+                token_issuer=token_issuer,
+                id_token_issuer=id_token_issuer,
+                auth_codes=repos.auth_codes,
+                refresh_tokens=repos.refresh_tokens,
+                random_source=random_source,
+                pkce_verifier=pkce_verifier,
+                clock=clock,
+                access_token_ttl_seconds=settings.access_token_ttl_seconds,
+                refresh_token_ttl_seconds=settings.refresh_token_ttl_seconds,
+            ),
+            RefreshTokenGrant(
+                token_issuer=token_issuer,
+                refresh_tokens=repos.refresh_tokens,
+                random_source=random_source,
+                clock=clock,
+                access_token_ttl_seconds=settings.access_token_ttl_seconds,
+                refresh_token_ttl_seconds=settings.refresh_token_ttl_seconds,
+            ),
+            DeviceCodeGrant(
+                token_issuer=token_issuer,
+                device_codes=repos.device_codes,
+                refresh_tokens=repos.refresh_tokens,
+                random_source=random_source,
+                clock=clock,
+                access_token_ttl_seconds=settings.access_token_ttl_seconds,
+                refresh_token_ttl_seconds=settings.refresh_token_ttl_seconds,
+            ),
+            JwtBearerGrant(
+                token_issuer=token_issuer,
+                trusted_issuers=repos.trusted_issuers,
+                assertion_verifier=assertion_verifier,
+                scope_validator=scope_validator,
+                expected_audience=f"{settings.issuer.rstrip('/')}/token",
+                access_token_ttl_seconds=settings.access_token_ttl_seconds,
+            ),
+            TokenExchangeGrant(
+                token_issuer=token_issuer,
+                subject_token_validator=subject_token_validator,
+                scope_validator=scope_validator,
+                access_token_ttl_seconds=settings.access_token_ttl_seconds,
+            ),
+        ]
+    )
 
     client_auth = ClientCredentialsPipeline(
         authenticators=[
@@ -388,9 +390,7 @@ async def build_container(
         clients=repos.clients,
     )
 
-    issue_token: IssueTokenUseCase = IssueTokenService(
-        client_auth=client_auth, grants=grants
-    )
+    issue_token: IssueTokenUseCase = IssueTokenService(client_auth=client_auth, grants=grants)
     authorize: AuthorizeUseCase = AuthorizeService(
         clients=repos.clients,
         users=repos.users,
@@ -504,8 +504,7 @@ async def _build_repositories(
         return _Repositories(
             clients=clients_override or SQLiteClientRepository(session_factory),
             auth_codes=auth_codes_override or SQLiteAuthorizationCodeRepository(session_factory),
-            refresh_tokens=refresh_tokens_override
-            or SQLiteRefreshTokenRepository(session_factory),
+            refresh_tokens=refresh_tokens_override or SQLiteRefreshTokenRepository(session_factory),
             device_codes=device_codes_override or SQLiteDeviceCodeRepository(session_factory),
             users=users_override or SQLiteUserRepository(session_factory),
             trusted_issuers=trusted_issuers_override
@@ -514,8 +513,7 @@ async def _build_repositories(
     if url.startswith("postgresql"):
         return _Repositories(
             clients=clients_override or PostgresClientRepository(session_factory),
-            auth_codes=auth_codes_override
-            or PostgresAuthorizationCodeRepository(session_factory),
+            auth_codes=auth_codes_override or PostgresAuthorizationCodeRepository(session_factory),
             refresh_tokens=refresh_tokens_override
             or PostgresRefreshTokenRepository(session_factory),
             device_codes=device_codes_override or PostgresDeviceCodeRepository(session_factory),

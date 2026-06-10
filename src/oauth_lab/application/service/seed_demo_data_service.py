@@ -63,7 +63,7 @@ class _TrustedIssuerSpec:
 _DEMO_CLIENTS: tuple[_ClientSpec, ...] = (
     _ClientSpec(
         id="demo-client",
-        secret="demo-secret",                                                            # noqa: S106
+        secret="demo-secret",  # noqa: S106
         auth_method=ClientAuthMethod.CLIENT_SECRET_BASIC,
         grants=frozenset({GrantType.CLIENT_CREDENTIALS}),
         scopes=("read", "write"),
@@ -71,7 +71,7 @@ _DEMO_CLIENTS: tuple[_ClientSpec, ...] = (
     ),
     _ClientSpec(
         id="demo-spa",
-        secret=None,                                                                     # public
+        secret=None,  # public
         auth_method=ClientAuthMethod.NONE,
         grants=frozenset({GrantType.AUTHORIZATION_CODE, GrantType.REFRESH_TOKEN}),
         scopes=("read", "write"),
@@ -79,7 +79,7 @@ _DEMO_CLIENTS: tuple[_ClientSpec, ...] = (
     ),
     _ClientSpec(
         id="demo-device",
-        secret=None,                                                                     # public
+        secret=None,  # public
         auth_method=ClientAuthMethod.NONE,
         grants=frozenset({GrantType.DEVICE_CODE, GrantType.REFRESH_TOKEN}),
         scopes=("read", "write"),
@@ -87,7 +87,7 @@ _DEMO_CLIENTS: tuple[_ClientSpec, ...] = (
     ),
     _ClientSpec(
         id="demo-jwt-bearer",
-        secret="demo-jwt-bearer-secret",                                                 # noqa: S106
+        secret="demo-jwt-bearer-secret",  # noqa: S106
         auth_method=ClientAuthMethod.CLIENT_SECRET_BASIC,
         grants=frozenset({GrantType.JWT_BEARER}),
         scopes=("read", "write"),
@@ -95,7 +95,7 @@ _DEMO_CLIENTS: tuple[_ClientSpec, ...] = (
     ),
     _ClientSpec(
         id="demo-exchange",
-        secret="demo-exchange-secret",                                                   # noqa: S106
+        secret="demo-exchange-secret",  # noqa: S106
         auth_method=ClientAuthMethod.CLIENT_SECRET_BASIC,
         grants=frozenset({GrantType.CLIENT_CREDENTIALS, GrantType.TOKEN_EXCHANGE}),
         scopes=("read", "write"),
@@ -107,7 +107,7 @@ _DEMO_USERS: tuple[_UserSpec, ...] = (
     _UserSpec(
         sub="user-alice",
         username="alice",
-        password="alice-password",                                                       # noqa: S106
+        password="alice-password",  # noqa: S106
         email="alice@example.com",
     ),
 )

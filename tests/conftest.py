@@ -46,7 +46,7 @@ DEMO_JWT_BEARER_CLIENT_SECRET = "demo-jwt-bearer-secret"
 DEMO_EXCHANGE_CLIENT_ID = "demo-exchange"
 DEMO_EXCHANGE_CLIENT_SECRET = "demo-exchange-secret"
 DEMO_TRUSTED_ISSUER = "https://idp.example.com"
-DEMO_TOKEN_AUDIENCE = "http://localhost:8000/token"                  # AS issuer + /token
+DEMO_TOKEN_AUDIENCE = "http://localhost:8000/token"  # AS issuer + /token
 
 DEMO_USER_SUB = "user-alice"
 DEMO_USERNAME = "alice"
@@ -67,22 +67,18 @@ def demo_clients() -> InMemoryClientRepository:
     )
     public_spa = Client(
         id=ClientId(DEMO_PUBLIC_CLIENT_ID),
-        secret_hash=None,                                          # public — no secret
+        secret_hash=None,  # public — no secret
         token_endpoint_auth_method=ClientAuthMethod.NONE,
-        allowed_grant_types=frozenset(
-            {GrantType.AUTHORIZATION_CODE, GrantType.REFRESH_TOKEN}
-        ),
+        allowed_grant_types=frozenset({GrantType.AUTHORIZATION_CODE, GrantType.REFRESH_TOKEN}),
         allowed_scopes=ScopeSet(frozenset({Scope("read"), Scope("write")})),
         redirect_uris=frozenset({DEMO_PUBLIC_CLIENT_REDIRECT_URI}),
         default_audience="https://api.example.com",
     )
     public_device = Client(
         id=ClientId(DEMO_DEVICE_CLIENT_ID),
-        secret_hash=None,                                          # public — no secret
+        secret_hash=None,  # public — no secret
         token_endpoint_auth_method=ClientAuthMethod.NONE,
-        allowed_grant_types=frozenset(
-            {GrantType.DEVICE_CODE, GrantType.REFRESH_TOKEN}
-        ),
+        allowed_grant_types=frozenset({GrantType.DEVICE_CODE, GrantType.REFRESH_TOKEN}),
         allowed_scopes=ScopeSet(frozenset({Scope("read"), Scope("write")})),
         default_audience="https://api.example.com",
     )
@@ -98,9 +94,7 @@ def demo_clients() -> InMemoryClientRepository:
         id=ClientId(DEMO_EXCHANGE_CLIENT_ID),
         secret_hash=hasher.hash(DEMO_EXCHANGE_CLIENT_SECRET),
         token_endpoint_auth_method=ClientAuthMethod.CLIENT_SECRET_BASIC,
-        allowed_grant_types=frozenset(
-            {GrantType.CLIENT_CREDENTIALS, GrantType.TOKEN_EXCHANGE}
-        ),
+        allowed_grant_types=frozenset({GrantType.CLIENT_CREDENTIALS, GrantType.TOKEN_EXCHANGE}),
         allowed_scopes=ScopeSet(frozenset({Scope("read"), Scope("write")})),
         default_audience="https://api.example.com",
     )

@@ -17,7 +17,7 @@ from typing import ClassVar, Protocol
 @dataclass(frozen=True, slots=True)
 class ConsentDecision:
     approved: bool
-    user_sub: str                                                 # comes from verified session
+    user_sub: str  # comes from verified session
     client_id: str
     redirect_uri: str
     scope: str | None

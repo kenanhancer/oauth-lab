@@ -61,9 +61,7 @@ class RequestDeviceAuthorizationService:
         self._ttl = device_code_ttl_seconds
         self._interval = polling_interval_seconds
 
-    async def execute(
-        self, request: DeviceAuthorizationRequest
-    ) -> DeviceAuthorizationResponse:
+    async def execute(self, request: DeviceAuthorizationRequest) -> DeviceAuthorizationResponse:
         if not request.client_id:
             raise InvalidRequest("client_id is required")
 
@@ -71,14 +69,11 @@ class RequestDeviceAuthorizationService:
         if client is None:
             raise InvalidClient("unknown client_id")
         if not client.supports_grant(GrantType.DEVICE_CODE):
-            raise UnauthorizedClient(
-                "client is not allowed to use the device_code grant"
-            )
+            raise UnauthorizedClient("client is not allowed to use the device_code grant")
 
         requested_scope = ScopeSet.parse(request.scope)
-        if (
-            not requested_scope.is_empty()
-            and not requested_scope.is_subset_of(client.allowed_scopes)
+        if not requested_scope.is_empty() and not requested_scope.is_subset_of(
+            client.allowed_scopes
         ):
             raise InvalidScope("requested scope contains values not allowed for this client")
         scope = requested_scope if not requested_scope.is_empty() else client.allowed_scopes
@@ -102,9 +97,7 @@ class RequestDeviceAuthorizationService:
             device_code=device_code_value,
             user_code=user_code_value,
             verification_uri=self._verification_uri,
-            verification_uri_complete=(
-                f"{self._verification_uri}?user_code={user_code_value}"
-            ),
+            verification_uri_complete=(f"{self._verification_uri}?user_code={user_code_value}"),
             expires_in=self._ttl,
             interval=self._interval,
         )

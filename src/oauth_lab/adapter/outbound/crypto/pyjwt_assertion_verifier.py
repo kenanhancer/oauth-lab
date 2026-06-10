@@ -66,7 +66,7 @@ class PyJwtAssertionVerifier:
             raise InvalidGrant("assertion signature is invalid") from exc
         except jwt.MissingRequiredClaimError as exc:
             raise InvalidGrant(f"assertion missing required claim: {exc.claim}") from exc
-        except jwt.InvalidTokenError as exc:                                            # catch-all
+        except jwt.InvalidTokenError as exc:  # catch-all
             raise InvalidGrant(f"assertion is invalid: {exc}") from exc
 
         aud_claim = decoded["aud"]

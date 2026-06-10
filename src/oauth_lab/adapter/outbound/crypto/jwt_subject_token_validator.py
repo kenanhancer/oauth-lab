@@ -24,7 +24,7 @@ from oauth_lab.domain.model.token_type_uri import TokenTypeURI
 
 _JWT_DECODABLE_TYPES: frozenset[str] = frozenset(
     {
-        TokenTypeURI.ACCESS_TOKEN.value,                              # AS in JWT mode
+        TokenTypeURI.ACCESS_TOKEN.value,  # AS in JWT mode
         TokenTypeURI.ID_TOKEN.value,
         TokenTypeURI.JWT.value,
     }
@@ -39,9 +39,7 @@ class JwtSubjectTokenValidator:
 
     def validate(self, token: str, token_type: str) -> SubjectTokenClaims:
         if token_type not in _JWT_DECODABLE_TYPES:
-            raise InvalidRequest(
-                f"subject_token_type {token_type!r} is not supported by this AS"
-            )
+            raise InvalidRequest(f"subject_token_type {token_type!r} is not supported by this AS")
 
         try:
             decoded = jwt.decode(
@@ -51,7 +49,7 @@ class JwtSubjectTokenValidator:
                 issuer=self._issuer,
                 options={
                     "require": ["exp", "iss", "sub"],
-                    "verify_aud": False,                              # checked at policy layer
+                    "verify_aud": False,  # checked at policy layer
                 },
             )
         except jwt.ExpiredSignatureError as exc:
@@ -61,9 +59,7 @@ class JwtSubjectTokenValidator:
         except jwt.InvalidSignatureError as exc:
             raise InvalidGrant("subject_token signature is invalid") from exc
         except jwt.MissingRequiredClaimError as exc:
-            raise InvalidGrant(
-                f"subject_token missing required claim: {exc.claim}"
-            ) from exc
+            raise InvalidGrant(f"subject_token missing required claim: {exc.claim}") from exc
         except jwt.InvalidTokenError as exc:
             raise InvalidGrant(f"subject_token is invalid: {exc}") from exc
 

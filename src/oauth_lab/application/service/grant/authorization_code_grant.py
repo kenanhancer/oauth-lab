@@ -113,7 +113,7 @@ class AuthorizationCodeGrant(GrantStrategy):
         if client.supports_grant(GrantType.REFRESH_TOKEN):
             refresh = RefreshToken(
                 value=self._random.token_urlsafe(32),
-                family_id=self._random.token_urlsafe(16),                # new chain
+                family_id=self._random.token_urlsafe(16),  # new chain
                 client_id=client.id,
                 user_sub=code.user_sub,
                 scope=code.scope,

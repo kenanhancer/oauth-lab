@@ -45,9 +45,7 @@ class TokenIssuerFactory:
         if self._token_format is TokenFormat.OPAQUE:
             return OpaqueTokenIssuer(random_source=self._random)
         if self._signing_key_pem is None or self._key_id is None:
-            raise RuntimeError(
-                "OAUTH_LAB_TOKEN_FORMAT=jwt requires a signing key and key_id"
-            )
+            raise RuntimeError("OAUTH_LAB_TOKEN_FORMAT=jwt requires a signing key and key_id")
         return JwtTokenIssuer(
             issuer=self._issuer,
             signing_key_pem=self._signing_key_pem,

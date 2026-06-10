@@ -57,7 +57,7 @@ class TestRefreshTokenEntity:
         t = _make_token()
         consumed = t.consume(_NEXT_USE)
         assert consumed.consumed_at == _NEXT_USE
-        assert t.consumed_at is None                                     # immutable
+        assert t.consumed_at is None  # immutable
 
     def test_is_expired(self) -> None:
         t = _make_token(expires_in=timedelta(minutes=1))
@@ -125,9 +125,9 @@ class TestInMemoryRefreshTokenRepository:
         revoked = await repo.revoke_family("F", _NEXT_USE)
         assert revoked == 2
 
-        assert (await repo.find_by_value("a")).is_consumed()             # type: ignore[union-attr]
-        assert (await repo.find_by_value("b")).is_consumed()             # type: ignore[union-attr]
-        assert (await repo.find_by_value("c")).is_consumed() is False    # type: ignore[union-attr]
+        assert (await repo.find_by_value("a")).is_consumed()  # type: ignore[union-attr]
+        assert (await repo.find_by_value("b")).is_consumed()  # type: ignore[union-attr]
+        assert (await repo.find_by_value("c")).is_consumed() is False  # type: ignore[union-attr]
 
 
 class _FixedClock:

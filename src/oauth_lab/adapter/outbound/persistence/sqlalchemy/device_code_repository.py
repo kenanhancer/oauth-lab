@@ -51,21 +51,21 @@ class SqlAlchemyDeviceCodeRepository:
                 update(DeviceCodeRow)
                 .where(
                     DeviceCodeRow.device_code == device_code,
-                    DeviceCodeRow.user_sub.is_not(None),         # approved …
-                    DeviceCodeRow.denied.is_(False),             # … not denied
-                    DeviceCodeRow.redeemed_at.is_(None),         # unredeemed
-                    DeviceCodeRow.expires_at > now,              # unexpired
+                    DeviceCodeRow.user_sub.is_not(None),  # approved …
+                    DeviceCodeRow.denied.is_(False),  # … not denied
+                    DeviceCodeRow.redeemed_at.is_(None),  # unredeemed
+                    DeviceCodeRow.expires_at > now,  # unexpired
                 )
                 .values(redeemed_at=now)
             )
             result = cast("CursorResult[Any]", await session.execute(stmt))
             if result.rowcount == 0:
-                return None                                      # not in a redeemable state
+                return None  # not in a redeemable state
 
             row = await session.scalar(
                 select(DeviceCodeRow).where(DeviceCodeRow.device_code == device_code)
             )
-            if row is None:                                      # row vanished mid-transaction
+            if row is None:  # row vanished mid-transaction
                 return None
             redeemed = _to_domain(row)
             await session.commit()

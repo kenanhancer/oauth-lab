@@ -29,7 +29,7 @@ _ALLOWED_ALGORITHMS: frozenset[str] = frozenset(
 class TrustedAssertionIssuer:
     issuer: str
     public_key_pem: bytes
-    algorithm: str                                                    # e.g. "RS256", "ES256"
+    algorithm: str  # e.g. "RS256", "ES256"
     allowed_audiences: frozenset[str]
 
     def __post_init__(self) -> None:

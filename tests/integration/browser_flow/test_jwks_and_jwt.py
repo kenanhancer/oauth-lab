@@ -39,8 +39,8 @@ class TestJwksEndpoint:
         assert jwk["use"] == "sig"
         assert jwk["alg"] == "RS256"
         assert "kid" in jwk
-        assert "n" in jwk                                                # modulus
-        assert "e" in jwk                                                # exponent
+        assert "n" in jwk  # modulus
+        assert "e" in jwk  # exponent
 
 
 class TestJwtAccessToken:
@@ -75,6 +75,7 @@ class TestJwtAccessToken:
     async def test_jwt_access_token_is_signed_jwt(self, jwt_client: AsyncClient) -> None:
         # Use the M2M `client_credentials` flow for simplicity.
         import base64
+
         basic = "Basic " + base64.b64encode(
             f"{DEMO_CLIENT_ID}:{DEMO_CLIENT_SECRET}".encode()
         ).decode("ascii")
@@ -94,7 +95,7 @@ class TestJwtAccessToken:
         # Decode unverified header — should advertise our signing key + RFC 9068 `at+jwt` type.
         header = jwt.get_unverified_header(access_token)
         assert header["alg"] == "RS256"
-        assert header["typ"] == "at+jwt"                                  # RFC 9068
+        assert header["typ"] == "at+jwt"  # RFC 9068
         assert "kid" in header
 
     async def test_jwt_verifies_against_jwks(
@@ -102,6 +103,7 @@ class TestJwtAccessToken:
     ) -> None:
         # Get a JWT.
         import base64
+
         basic = "Basic " + base64.b64encode(
             f"{DEMO_CLIENT_ID}:{DEMO_CLIENT_SECRET}".encode()
         ).decode("ascii")

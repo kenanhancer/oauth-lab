@@ -99,11 +99,9 @@ class TestIdTokenIssuance:
         assert resp.status_code == 200, resp.text
         body = resp.json()
         assert "id_token" in body
-        assert body["id_token"].count(".") == 2                                  # JWT shape
+        assert body["id_token"].count(".") == 2  # JWT shape
 
-    async def test_id_token_claims(
-        self, oidc_app: FastAPI, oidc_client: AsyncClient
-    ) -> None:
+    async def test_id_token_claims(self, oidc_app: FastAPI, oidc_client: AsyncClient) -> None:
         code = await _seed_openid_code(oidc_app, nonce="some-nonce-xyz")
         resp = await oidc_client.post(
             "/token",
@@ -127,14 +125,14 @@ class TestIdTokenIssuance:
         assert claims["iss"] == container.settings.issuer
         assert claims["sub"] == "user-alice"
         assert claims["aud"] == DEMO_PUBLIC_CLIENT_ID
-        assert claims["nonce"] == "some-nonce-xyz"                                # propagated
+        assert claims["nonce"] == "some-nonce-xyz"  # propagated
         assert "exp" in claims and "iat" in claims
-        assert "at_hash" in claims                                                # OIDC §3.1.3.6
+        assert "at_hash" in claims  # OIDC §3.1.3.6
 
     async def test_no_openid_scope_no_id_token(
         self, oidc_app: FastAPI, oidc_client: AsyncClient
     ) -> None:
-        code = await _seed_openid_code(oidc_app, scope="read")                    # no `openid`
+        code = await _seed_openid_code(oidc_app, scope="read")  # no `openid`
         resp = await oidc_client.post(
             "/token",
             data={

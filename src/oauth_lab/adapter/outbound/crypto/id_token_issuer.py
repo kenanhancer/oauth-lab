@@ -79,9 +79,15 @@ class JwtIdTokenIssuer:
 # OIDC Core § 3.1.3.6: the at_hash digest is the hash used by the id_token's
 # signing algorithm — SHA-256 for *256 algs, SHA-384 for *384, SHA-512 for *512.
 _AT_HASH_DIGEST: dict[str, str] = {
-    "RS256": "sha256", "ES256": "sha256", "PS256": "sha256",
-    "RS384": "sha384", "ES384": "sha384", "PS384": "sha384",
-    "RS512": "sha512", "ES512": "sha512", "PS512": "sha512",
+    "RS256": "sha256",
+    "ES256": "sha256",
+    "PS256": "sha256",
+    "RS384": "sha384",
+    "ES384": "sha384",
+    "PS384": "sha384",
+    "RS512": "sha512",
+    "ES512": "sha512",
+    "PS512": "sha512",
 }
 
 

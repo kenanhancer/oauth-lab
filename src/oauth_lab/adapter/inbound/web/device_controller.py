@@ -88,9 +88,7 @@ def build_router(
         session = session_signer().verify(session_cookie)
         if session is None:
             next_url = "/device?user_code=" + quote_plus(view.user_code)
-            return RedirectResponse(
-                url="/login?next=" + quote_plus(next_url), status_code=303
-            )
+            return RedirectResponse(url="/login?next=" + quote_plus(next_url), status_code=303)
 
         html = templates.render(
             "device_consent.html",
@@ -128,7 +126,7 @@ def build_router(
     async def device_consent_submit(
         *,
         user_code: Annotated[str, Form()],
-        decision: Annotated[str, Form()],                              # "approve" | "deny"
+        decision: Annotated[str, Form()],  # "approve" | "deny"
         csrf_token: Annotated[str, Form()] = "",
         session_cookie: Annotated[str | None, Cookie(alias=SESSION_COOKIE_NAME)] = None,
     ) -> Response:

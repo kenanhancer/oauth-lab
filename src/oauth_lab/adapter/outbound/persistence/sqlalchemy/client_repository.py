@@ -44,12 +44,8 @@ def _to_domain(row: ClientRow) -> Client:
         id=ClientId(row.client_id),
         secret_hash=row.secret_hash,
         token_endpoint_auth_method=ClientAuthMethod(row.token_endpoint_auth_method),
-        allowed_grant_types=frozenset(
-            GrantType(g) for g in row.allowed_grant_types.split() if g
-        ),
-        allowed_scopes=ScopeSet(
-            frozenset(Scope(s) for s in row.allowed_scopes.split() if s)
-        ),
+        allowed_grant_types=frozenset(GrantType(g) for g in row.allowed_grant_types.split() if g),
+        allowed_scopes=ScopeSet(frozenset(Scope(s) for s in row.allowed_scopes.split() if s)),
         redirect_uris=frozenset(u for u in row.redirect_uris.split() if u),
         default_audience=row.default_audience,
     )

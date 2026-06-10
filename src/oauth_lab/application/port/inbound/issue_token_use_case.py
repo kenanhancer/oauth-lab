@@ -20,7 +20,7 @@ from oauth_lab.domain.model.scope import ScopeSet
 class ClientCredentials:
     """The raw credentials extracted from an HTTP request, before validation."""
 
-    basic_auth_header: str | None = None              # HTTP Basic header value (no "Basic " prefix)
+    basic_auth_header: str | None = None  # HTTP Basic header value (no "Basic " prefix)
     form_client_id: str | None = None
     form_client_secret: str | None = None
     client_assertion: str | None = None

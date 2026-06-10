@@ -31,11 +31,11 @@ class DeviceCode:
     scope: ScopeSet
     issued_at: datetime
     expires_at: datetime
-    interval: int                                                 # seconds (RFC 8628 § 3.2)
+    interval: int  # seconds (RFC 8628 § 3.2)
     last_polled_at: datetime | None = None
-    user_sub: str | None = None                                   # set on approval
+    user_sub: str | None = None  # set on approval
     denied: bool = False
-    redeemed_at: datetime | None = None                           # set when tokens issued
+    redeemed_at: datetime | None = None  # set when tokens issued
 
     def is_expired(self, now: datetime) -> bool:
         return now >= self.expires_at

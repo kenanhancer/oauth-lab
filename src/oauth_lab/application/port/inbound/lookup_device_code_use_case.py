@@ -17,7 +17,7 @@ class DeviceCodeView:
     client_id: str
     requested_scopes: tuple[str, ...]
     expired: bool
-    already_decided: bool                                         # approved or denied
+    already_decided: bool  # approved or denied
 
 
 class LookupDeviceCodeUseCase(Protocol):

@@ -43,7 +43,7 @@ async def test_redeem_is_single_use(repo: SqlAlchemyDeviceCodeRepository) -> Non
         issued_at=_NOW,
         expires_at=_NOW + timedelta(minutes=30),
         interval=5,
-        user_sub="user-alice",                                   # approved, unredeemed
+        user_sub="user-alice",  # approved, unredeemed
     )
     await repo.save(approved)
 

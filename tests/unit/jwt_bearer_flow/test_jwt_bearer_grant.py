@@ -129,15 +129,11 @@ class TestJwtBearerGrant:
         result = await grant.execute(_request(_sign(private_pem)), _make_client())
         assert result.access_token == f"stub-{_SUBJECT}"
         assert result.token_type == "Bearer"
-        assert result.refresh_token is None                # jwt-bearer does not issue refresh
+        assert result.refresh_token is None  # jwt-bearer does not issue refresh
 
-    async def test_missing_assertion_raises_invalid_request(
-        self, grant: JwtBearerGrant
-    ) -> None:
+    async def test_missing_assertion_raises_invalid_request(self, grant: JwtBearerGrant) -> None:
         with pytest.raises(InvalidRequest):
-            await grant.execute(
-                TokenRequest(grant_type=GrantType.JWT_BEARER), _make_client()
-            )
+            await grant.execute(TokenRequest(grant_type=GrantType.JWT_BEARER), _make_client())
 
     async def test_client_not_allowed_grant_raises(
         self, grant: JwtBearerGrant, keypair: tuple[bytes, bytes]
@@ -171,9 +167,7 @@ class TestJwtBearerGrant:
         with pytest.raises(InvalidGrant, match="audience"):
             await grant.execute(_request(token), _make_client())
 
-    async def test_signature_signed_with_wrong_key_raises(
-        self, grant: JwtBearerGrant
-    ) -> None:
+    async def test_signature_signed_with_wrong_key_raises(self, grant: JwtBearerGrant) -> None:
         attacker_pem = generate_rsa_keypair_pem()
         token = _sign(attacker_pem)
         with pytest.raises(InvalidGrant, match="signature"):

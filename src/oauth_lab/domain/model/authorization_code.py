@@ -37,7 +37,7 @@ class AuthorizationCode:
     issued_at: datetime
     expires_at: datetime
     consumed_at: datetime | None = None
-    nonce: str | None = None                                         # OIDC: bound into id_token
+    nonce: str | None = None  # OIDC: bound into id_token
 
     def is_expired(self, now: datetime) -> bool:
         return now >= self.expires_at

@@ -67,16 +67,14 @@ def create_app(*, settings: Settings | None = None) -> FastAPI:
     register_oauth_exception_handler(app)
 
     def container() -> Container:
-        return app.state.container                                                # type: ignore[no-any-return]
+        return app.state.container  # type: ignore[no-any-return]
 
     # The Jinja wrapper is an inbound-adapter concern — constructed here,
     # never carried by the Container.
     templates = TemplateRenderer(TEMPLATES_DIR)
 
     # Inbound (driving) REST adapters
-    app.include_router(
-        token_controller.build_router(issue_token=lambda: container().issue_token)
-    )
+    app.include_router(token_controller.build_router(issue_token=lambda: container().issue_token))
     app.include_router(jwks_controller.build_router(jwks=lambda: container().jwks))
     app.include_router(
         userinfo_controller.build_router(get_user_info=lambda: container().get_user_info)

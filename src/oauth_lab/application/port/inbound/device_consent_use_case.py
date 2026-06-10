@@ -9,7 +9,7 @@ from typing import Protocol
 @dataclass(frozen=True, slots=True)
 class DeviceConsentDecision:
     user_code: str
-    user_sub: str                                                 # from the verified session
+    user_sub: str  # from the verified session
     approved: bool
 
 

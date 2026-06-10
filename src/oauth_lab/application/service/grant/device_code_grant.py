@@ -113,7 +113,7 @@ class DeviceCodeGrant(GrantStrategy):
         redeemed = await self._device_codes.redeem(request.device_code, now)
         if redeemed is None:
             raise InvalidGrant("device code already redeemed")
-        assert redeemed.user_sub is not None                     # redeemable ⇒ approved
+        assert redeemed.user_sub is not None  # redeemable ⇒ approved
 
         issued_access = await self._token_issuer.issue(
             subject=redeemed.user_sub,
@@ -139,7 +139,7 @@ class DeviceCodeGrant(GrantStrategy):
 
         return TokenIssuanceResult(
             access_token=issued_access.value,
-            token_type="Bearer",                                                                # noqa: S106
+            token_type="Bearer",  # noqa: S106
             expires_in=issued_access.expires_in_seconds,
             scope=redeemed.scope,
             refresh_token=refresh_token_value,

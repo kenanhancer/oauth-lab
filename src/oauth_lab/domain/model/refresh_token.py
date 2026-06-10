@@ -24,7 +24,7 @@ from oauth_lab.domain.model.scope import ScopeSet
 @dataclass(frozen=True, slots=True)
 class RefreshToken:
     value: str
-    family_id: str                # groups the rotation chain
+    family_id: str  # groups the rotation chain
     client_id: ClientId
     user_sub: str
     scope: ScopeSet

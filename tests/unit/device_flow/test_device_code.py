@@ -54,7 +54,7 @@ class TestDeviceCodeStateMachine:
         assert code.user_sub is None
 
     def test_deny_clears_user_sub(self) -> None:
-        code = _make_code(user_sub="user-alice")                 # previously approved
+        code = _make_code(user_sub="user-alice")  # previously approved
         denied = code.deny()
         assert denied.is_denied()
         assert denied.user_sub is None
@@ -84,7 +84,7 @@ class TestDeviceCodeStateMachine:
         code = _make_code()
         polled = code.mark_polled(_NOW + timedelta(seconds=1))
         assert polled.last_polled_at == _NOW + timedelta(seconds=1)
-        assert code.last_polled_at is None                       # immutable
+        assert code.last_polled_at is None  # immutable
 
     def test_redeem_sets_timestamp_and_is_immutable(self) -> None:
         code = _make_code(user_sub="user-alice")
@@ -92,4 +92,4 @@ class TestDeviceCodeStateMachine:
         redeemed = code.redeem(_NOW + timedelta(seconds=2))
         assert redeemed.is_redeemed()
         assert redeemed.redeemed_at == _NOW + timedelta(seconds=2)
-        assert code.redeemed_at is None                          # immutable
+        assert code.redeemed_at is None  # immutable

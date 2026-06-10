@@ -22,9 +22,9 @@ class ClientRow(Base):
     client_id: Mapped[str] = mapped_column(primary_key=True, index=True)
     secret_hash: Mapped[bytes | None] = mapped_column(nullable=True)
     token_endpoint_auth_method: Mapped[str]
-    allowed_grant_types: Mapped[str]                  # space-separated
-    allowed_scopes: Mapped[str]                       # space-separated
-    redirect_uris: Mapped[str]                        # space-separated, may be empty
+    allowed_grant_types: Mapped[str]  # space-separated
+    allowed_scopes: Mapped[str]  # space-separated
+    redirect_uris: Mapped[str]  # space-separated, may be empty
     default_audience: Mapped[str | None] = mapped_column(nullable=True)
 
 
@@ -35,13 +35,13 @@ class AuthorizationCodeRow(Base):
     client_id: Mapped[str] = mapped_column(index=True)
     user_sub: Mapped[str]
     redirect_uri: Mapped[str]
-    scope: Mapped[str]                                # space-separated
+    scope: Mapped[str]  # space-separated
     pkce_challenge_value: Mapped[str]
-    pkce_challenge_method: Mapped[str]                # always "S256"
+    pkce_challenge_method: Mapped[str]  # always "S256"
     issued_at: Mapped[datetime]
     expires_at: Mapped[datetime] = mapped_column(index=True)
     consumed_at: Mapped[datetime | None] = mapped_column(nullable=True, index=True)
-    nonce: Mapped[str | None] = mapped_column(nullable=True)             # OIDC
+    nonce: Mapped[str | None] = mapped_column(nullable=True)  # OIDC
 
 
 class UserRow(Base):
@@ -72,14 +72,14 @@ class DeviceCodeRow(Base):
     device_code: Mapped[str] = mapped_column(primary_key=True)
     user_code: Mapped[str] = mapped_column(unique=True, index=True)
     client_id: Mapped[str] = mapped_column(index=True)
-    scope: Mapped[str]                                # space-separated
+    scope: Mapped[str]  # space-separated
     issued_at: Mapped[datetime]
     expires_at: Mapped[datetime] = mapped_column(index=True)
     interval_seconds: Mapped[int]
     last_polled_at: Mapped[datetime | None] = mapped_column(nullable=True)
-    user_sub: Mapped[str | None] = mapped_column(nullable=True)                # None until approved
+    user_sub: Mapped[str | None] = mapped_column(nullable=True)  # None until approved
     denied: Mapped[bool] = mapped_column(default=False)
-    redeemed_at: Mapped[datetime | None] = mapped_column(nullable=True)        # None until redeemed
+    redeemed_at: Mapped[datetime | None] = mapped_column(nullable=True)  # None until redeemed
 
 
 class TrustedAssertionIssuerRow(Base):
@@ -87,5 +87,5 @@ class TrustedAssertionIssuerRow(Base):
 
     issuer: Mapped[str] = mapped_column(primary_key=True)
     public_key_pem: Mapped[bytes]
-    algorithm: Mapped[str]                            # e.g. "RS256"
-    allowed_audiences: Mapped[str]                    # space-separated
+    algorithm: Mapped[str]  # e.g. "RS256"
+    allowed_audiences: Mapped[str]  # space-separated

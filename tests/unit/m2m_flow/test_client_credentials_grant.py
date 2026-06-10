@@ -35,8 +35,13 @@ class StubTokenIssuer:
         self.last_call: dict[str, object] = {}
 
     async def issue(
-        self, *, subject: str, client_id: str, scope: ScopeSet,
-        audience: str | None, ttl_seconds: int,
+        self,
+        *,
+        subject: str,
+        client_id: str,
+        scope: ScopeSet,
+        audience: str | None,
+        ttl_seconds: int,
     ) -> IssuedToken:
         self.last_call = {
             "subject": subject,

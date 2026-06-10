@@ -97,9 +97,7 @@ def _make_code(
     )
 
 
-def _grant(*, clock_value: datetime = _NOW) -> tuple[
-    DeviceCodeGrant, InMemoryDeviceCodeRepository
-]:
+def _grant(*, clock_value: datetime = _NOW) -> tuple[DeviceCodeGrant, InMemoryDeviceCodeRepository]:
     device_codes = InMemoryDeviceCodeRepository()
     refresh_tokens = InMemoryRefreshTokenRepository()
     return (
@@ -124,9 +122,7 @@ class TestDeviceCodeGrantStateMachine:
     async def test_missing_device_code_raises_invalid_request(self) -> None:
         grant, _repo = _grant()
         with pytest.raises(InvalidRequest):
-            await grant.execute(
-                TokenRequest(grant_type=GrantType.DEVICE_CODE), _make_client()
-            )
+            await grant.execute(TokenRequest(grant_type=GrantType.DEVICE_CODE), _make_client())
 
     async def test_unknown_device_code_raises_invalid_grant(self) -> None:
         grant, _repo = _grant()
@@ -187,7 +183,7 @@ class TestDeviceCodeGrantStateMachine:
         result = await grant.execute(_request(), _make_client())
         assert result.access_token == "stub-access-token"
         assert result.token_type == "Bearer"
-        assert result.refresh_token is not None                   # demo-device supports refresh
+        assert result.refresh_token is not None  # demo-device supports refresh
 
     async def test_approved_code_is_single_use(self) -> None:
         # First poll after approval succeeds; the second must fail —

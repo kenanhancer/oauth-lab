@@ -206,9 +206,7 @@ class TestRefreshTokenEdgeCases:
             },
             headers={
                 "Authorization": "Basic "
-                + __import__("base64")
-                .b64encode(b"demo-client:demo-secret")
-                .decode("ascii")
+                + __import__("base64").b64encode(b"demo-client:demo-secret").decode("ascii")
             },
         )
         # demo-client is NOT allowed to use refresh_token (unauthorized_client)

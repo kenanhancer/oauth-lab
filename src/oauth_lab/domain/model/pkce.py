@@ -38,8 +38,7 @@ class PKCEChallenge:
             )
         if not _MIN_LEN <= len(self.value) <= _MAX_LEN:
             raise ValueError(
-                f"code_challenge length must be {_MIN_LEN}-{_MAX_LEN}; "
-                f"got {len(self.value)}"
+                f"code_challenge length must be {_MIN_LEN}-{_MAX_LEN}; got {len(self.value)}"
             )
         if not _UNRESERVED_RE.match(self.value):
             raise ValueError("code_challenge contains characters outside the unreserved set")
@@ -52,6 +51,4 @@ def is_valid_code_verifier(code_verifier: str) -> bool:
     inside an authentication path without try/except. Actual hash
     comparison is done by `PKCEVerifier`.
     """
-    return _MIN_LEN <= len(code_verifier) <= _MAX_LEN and bool(
-        _UNRESERVED_RE.match(code_verifier)
-    )
+    return _MIN_LEN <= len(code_verifier) <= _MAX_LEN and bool(_UNRESERVED_RE.match(code_verifier))

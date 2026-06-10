@@ -80,9 +80,7 @@ class RefreshTokenGrant(GrantStrategy):
         # Replay defence — RFC 9700 § 2.2.2.
         if token.is_consumed():
             await self._refresh_tokens.revoke_family(token.family_id, now)
-            raise InvalidGrant(
-                "refresh token replay detected; the token chain has been revoked"
-            )
+            raise InvalidGrant("refresh token replay detected; the token chain has been revoked")
 
         if token.is_expired(now):
             raise InvalidGrant("refresh token has expired")
@@ -123,7 +121,7 @@ class RefreshTokenGrant(GrantStrategy):
 
         return TokenIssuanceResult(
             access_token=issued_access.value,
-            token_type="Bearer",                                                                # noqa: S106
+            token_type="Bearer",  # noqa: S106
             expires_in=issued_access.expires_in_seconds,
             scope=granted_scope,
             refresh_token=new_token.value,

@@ -16,9 +16,7 @@ class SqlAlchemyTrustedAssertionIssuerRepository:
     async def find_by_issuer(self, iss: str) -> TrustedAssertionIssuer | None:
         async with self._session_factory() as session:
             row = await session.scalar(
-                select(TrustedAssertionIssuerRow).where(
-                    TrustedAssertionIssuerRow.issuer == iss
-                )
+                select(TrustedAssertionIssuerRow).where(TrustedAssertionIssuerRow.issuer == iss)
             )
             return None if row is None else _to_domain(row)
 

@@ -45,5 +45,5 @@ class GetUserInfoService:
             sub=user.sub,
             preferred_username=preferred_username,
             email=email,
-            email_verified=True if email is not None else None,       # demo default
+            email_verified=True if email is not None else None,  # demo default
         )

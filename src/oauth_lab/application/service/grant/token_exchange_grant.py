@@ -82,13 +82,9 @@ class TokenExchangeGrant(GrantStrategy):
 
         requested_type = request.requested_token_type or TokenTypeURI.ACCESS_TOKEN.value
         if requested_type != TokenTypeURI.ACCESS_TOKEN.value:
-            raise InvalidRequest(
-                f"requested_token_type {requested_type!r} is not supported"
-            )
+            raise InvalidRequest(f"requested_token_type {requested_type!r} is not supported")
 
-        claims = self._validator.validate(
-            request.subject_token, request.subject_token_type
-        )
+        claims = self._validator.validate(request.subject_token, request.subject_token_type)
 
         granted_scope = self._derive_scope(request=request, subject=claims, client=client)
         audience = self._derive_audience(request=request, client=client)
@@ -103,7 +99,7 @@ class TokenExchangeGrant(GrantStrategy):
 
         return TokenIssuanceResult(
             access_token=issued.value,
-            token_type="Bearer",                                                            # noqa: S106
+            token_type="Bearer",  # noqa: S106
             expires_in=issued.expires_in_seconds,
             scope=granted_scope,
             issued_token_type=TokenTypeURI.ACCESS_TOKEN.value,
@@ -119,9 +115,7 @@ class TokenExchangeGrant(GrantStrategy):
         # Step 1 — pin to what the original token actually had.
         # Step 2 — clip to what the requesting client is allowed.
         # Step 3 — if the caller named a subset, honour it (else default).
-        upper_bound = ScopeSet(
-            subject.scope.scopes & client.allowed_scopes.scopes
-        )
+        upper_bound = ScopeSet(subject.scope.scopes & client.allowed_scopes.scopes)
         if request.scope.is_empty():
             return upper_bound
         return self._scope_validator.grantable(

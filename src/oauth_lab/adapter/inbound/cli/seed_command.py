@@ -64,7 +64,5 @@ def _dispatch(_args: argparse.Namespace) -> int:
 
 def register(subparsers: argparse._SubParsersAction[argparse.ArgumentParser]) -> None:
     """Attach the `seed` subcommand to the top-level argparse setup."""
-    parser = subparsers.add_parser(
-        "seed", help="Seed demo clients into the configured database"
-    )
+    parser = subparsers.add_parser("seed", help="Seed demo clients into the configured database")
     parser.set_defaults(func=_dispatch)

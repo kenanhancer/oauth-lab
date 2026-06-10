@@ -47,31 +47,23 @@ async def _start_device_flow(http_client: AsyncClient) -> dict:
 
 
 class TestDeviceAuthorizationEndpoint:
-    async def test_happy_path_returns_rfc8628_fields(
-        self, http_client: AsyncClient
-    ) -> None:
+    async def test_happy_path_returns_rfc8628_fields(self, http_client: AsyncClient) -> None:
         body = await _start_device_flow(http_client)
         assert "device_code" in body
         assert "user_code" in body
         assert body["verification_uri"].endswith("/device")
-        assert body["verification_uri_complete"].endswith(
-            f"/device?user_code={body['user_code']}"
-        )
+        assert body["verification_uri_complete"].endswith(f"/device?user_code={body['user_code']}")
         assert body["expires_in"] >= 60
         assert body["interval"] >= 1
 
-    async def test_unknown_client_returns_invalid_client(
-        self, http_client: AsyncClient
-    ) -> None:
+    async def test_unknown_client_returns_invalid_client(self, http_client: AsyncClient) -> None:
         resp = await http_client.post(
             "/device_authorization", data={"client_id": "ghost", "scope": "read"}
         )
         assert resp.status_code == 401
         assert resp.json()["error"] == "invalid_client"
 
-    async def test_client_not_allowed_for_device_code(
-        self, http_client: AsyncClient
-    ) -> None:
+    async def test_client_not_allowed_for_device_code(self, http_client: AsyncClient) -> None:
         # demo-client is the M2M confidential client; not allowed device_code.
         resp = await http_client.post(
             "/device_authorization",
@@ -137,6 +129,7 @@ class TestDevicePolling:
         # last poll already set it. So sleep — or use a smaller fixture. Here
         # we accept slow_down on poll2 and poll3 success.
         import asyncio
+
         await asyncio.sleep(start["interval"] + 0.1)
         poll_final = await http_client.post(
             "/token",
@@ -150,11 +143,9 @@ class TestDevicePolling:
         body = poll_final.json()
         assert body["token_type"] == "Bearer"
         assert isinstance(body["access_token"], str)
-        assert isinstance(body["refresh_token"], str)               # demo-device supports refresh
+        assert isinstance(body["refresh_token"], str)  # demo-device supports refresh
 
-    async def test_polling_too_fast_returns_slow_down(
-        self, http_client: AsyncClient
-    ) -> None:
+    async def test_polling_too_fast_returns_slow_down(self, http_client: AsyncClient) -> None:
         start = await _start_device_flow(http_client)
         device_code = start["device_code"]
 
@@ -182,9 +173,7 @@ class TestDevicePolling:
         assert second.status_code == 400
         assert second.json()["error"] == "slow_down"
 
-    async def test_user_denial_returns_access_denied(
-        self, http_client: AsyncClient
-    ) -> None:
+    async def test_user_denial_returns_access_denied(self, http_client: AsyncClient) -> None:
         start = await _start_device_flow(http_client)
         device_code = start["device_code"]
         user_code = start["user_code"]
@@ -211,6 +200,7 @@ class TestDevicePolling:
 
         # Device polls → access_denied (no prior poll, so the interval gate is open)
         import asyncio
+
         await asyncio.sleep(0.1)
         poll = await http_client.post(
             "/token",
@@ -230,9 +220,7 @@ class TestDeviceWebEntry:
         assert resp.status_code == 200
         assert "Enter the code" in resp.text or "code" in resp.text.lower()
 
-    async def test_post_device_unknown_code_shows_error(
-        self, http_client: AsyncClient
-    ) -> None:
+    async def test_post_device_unknown_code_shows_error(self, http_client: AsyncClient) -> None:
         # Need a logged-in session so /device proceeds past the lookup
         login = await http_client.post(
             "/login",
