@@ -7,6 +7,7 @@ Location: `tests/unit/device_flow/` — folder carries the scenario.
 
 from __future__ import annotations
 
+import asyncio
 from datetime import UTC, datetime, timedelta
 
 import pytest
@@ -18,7 +19,10 @@ from oauth_lab.adapter.outbound.persistence.memory.refresh_token_repository impo
     InMemoryRefreshTokenRepository,
 )
 from oauth_lab.adapter.outbound.random.secure_random_source import SecureRandomSource
-from oauth_lab.application.port.inbound.issue_token_use_case import TokenRequest
+from oauth_lab.application.port.inbound.issue_token_use_case import (
+    TokenIssuanceResult,
+    TokenRequest,
+)
 from oauth_lab.application.port.outbound.token_issuer import IssuedToken
 from oauth_lab.application.service.client_auth.client_authenticator import AuthenticatedClient
 from oauth_lab.application.service.grant.device_code_grant import DeviceCodeGrant
@@ -196,3 +200,34 @@ class TestDeviceCodeGrantStateMachine:
 
         with pytest.raises(InvalidGrant, match="already redeemed"):
             await grant.execute(_request(), _make_client())
+
+
+class TestAtomicRedemption:
+    async def test_second_redeem_returns_none(self) -> None:
+        repo = InMemoryDeviceCodeRepository()
+        await repo.save(_make_code(user_sub="user-alice"))
+
+        first = await repo.redeem("dev-code-123", _NOW)
+        assert first is not None
+        assert first.is_redeemed()
+
+        assert await repo.redeem("dev-code-123", _NOW) is None
+
+    async def test_concurrent_polls_issue_tokens_exactly_once(self) -> None:
+        # Two simultaneous polls of one approved code: the atomic
+        # `redeem()` lets exactly one mint tokens; the loser gets
+        # invalid_grant instead of a duplicate issuance.
+        grant, repo = _grant()
+        await repo.save(_make_code(user_sub="user-alice"))
+
+        results = await asyncio.gather(
+            grant.execute(_request(), _make_client()),
+            grant.execute(_request(), _make_client()),
+            return_exceptions=True,
+        )
+
+        issued = [r for r in results if isinstance(r, TokenIssuanceResult)]
+        rejected = [r for r in results if isinstance(r, InvalidGrant)]
+        assert len(issued) == 1
+        assert len(rejected) == 1
+        assert "already redeemed" in str(rejected[0])

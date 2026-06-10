@@ -106,14 +106,19 @@ class DeviceCodeGrant(GrantStrategy):
         # grant: replaying it after a successful exchange would amplify
         # one user approval into unlimited token issuance, so we enforce
         # single-use (same intent as RFC 6749 § 4.1.2 for authz codes).
-        assert code.user_sub is not None
-        if code.is_redeemed():
+        # `redeem()` is the atomic check-and-set: of N concurrent polls
+        # exactly one gets the entity back, the rest get None. Marking
+        # BEFORE minting means a crash here loses one issuance but can
+        # never double-issue — the fail-safe direction.
+        redeemed = await self._device_codes.redeem(request.device_code, now)
+        if redeemed is None:
             raise InvalidGrant("device code already redeemed")
+        assert redeemed.user_sub is not None                     # redeemable ⇒ approved
 
         issued_access = await self._token_issuer.issue(
-            subject=code.user_sub,
+            subject=redeemed.user_sub,
             client_id=str(client.id),
-            scope=code.scope,
+            scope=redeemed.scope,
             audience=client.default_audience,
             ttl_seconds=self._access_ttl,
         )
@@ -124,21 +129,18 @@ class DeviceCodeGrant(GrantStrategy):
                 value=self._random.token_urlsafe(32),
                 family_id=self._random.token_urlsafe(16),
                 client_id=client.id,
-                user_sub=code.user_sub,
-                scope=code.scope,
+                user_sub=redeemed.user_sub,
+                scope=redeemed.scope,
                 issued_at=now,
                 expires_at=now + timedelta(seconds=self._refresh_ttl),
             )
             await self._refresh_tokens.save(refresh)
             refresh_token_value = refresh.value
 
-        # Mark single-use so re-polling after success fails with invalid_grant.
-        await self._device_codes.save(code.redeem(now))
-
         return TokenIssuanceResult(
             access_token=issued_access.value,
             token_type="Bearer",                                                                # noqa: S106
             expires_in=issued_access.expires_in_seconds,
-            scope=code.scope,
+            scope=redeemed.scope,
             refresh_token=refresh_token_value,
         )

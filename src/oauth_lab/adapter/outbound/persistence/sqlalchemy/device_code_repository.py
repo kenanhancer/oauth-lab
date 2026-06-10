@@ -1,8 +1,15 @@
-"""Shared SQLAlchemy `DeviceCodeRepository` (sqlite + postgres)."""
+"""Shared SQLAlchemy `DeviceCodeRepository` (sqlite + postgres).
+
+`redeem()` uses a conditional UPDATE (atomic at the SQL level) — no
+transaction lock needed for correctness against concurrent redemptions.
+"""
 
 from __future__ import annotations
 
-from sqlalchemy import select
+from datetime import datetime
+from typing import Any, cast
+
+from sqlalchemy import CursorResult, select, update
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from oauth_lab.adapter.outbound.persistence.orm.models import DeviceCodeRow
@@ -37,6 +44,32 @@ class SqlAlchemyDeviceCodeRepository:
                 select(DeviceCodeRow).where(DeviceCodeRow.user_code == user_code)
             )
             return None if row is None else _to_domain(row)
+
+    async def redeem(self, device_code: str, now: datetime) -> DeviceCode | None:
+        async with self._session_factory() as session:
+            stmt = (
+                update(DeviceCodeRow)
+                .where(
+                    DeviceCodeRow.device_code == device_code,
+                    DeviceCodeRow.user_sub.is_not(None),         # approved …
+                    DeviceCodeRow.denied.is_(False),             # … not denied
+                    DeviceCodeRow.redeemed_at.is_(None),         # unredeemed
+                    DeviceCodeRow.expires_at > now,              # unexpired
+                )
+                .values(redeemed_at=now)
+            )
+            result = cast("CursorResult[Any]", await session.execute(stmt))
+            if result.rowcount == 0:
+                return None                                      # not in a redeemable state
+
+            row = await session.scalar(
+                select(DeviceCodeRow).where(DeviceCodeRow.device_code == device_code)
+            )
+            if row is None:                                      # row vanished mid-transaction
+                return None
+            redeemed = _to_domain(row)
+            await session.commit()
+            return redeemed
 
 
 def _to_domain(row: DeviceCodeRow) -> DeviceCode:
