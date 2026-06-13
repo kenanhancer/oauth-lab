@@ -12,6 +12,10 @@ venv/
 *.db
 *.sqlite
 *.sqlite3
+# Alembic autogenerate scratch DBs (the real migrations live in
+# migrations/versions/*.py and ARE tracked — do not ignore those).
+_autogen.db
+_verify.db
 dist/
 build/
 .openapi-generator/
