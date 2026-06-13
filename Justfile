@@ -20,24 +20,62 @@ gen:
       --skip-validate-spec \
       --additional-properties=packageName=openapi_server,sourceFolder=src
 
-# Run the server against SQLite (no Docker needed)
-dev:
+# Run the server against SQLite (no Docker needed). Migrates first — the app
+# verifies schema-at-head on boot and refuses to start against a stale DB.
+dev: migrate
     OAUTH_LAB_DATABASE_URL=sqlite+aiosqlite:///./oauth_lab.db \
         .venv/bin/uvicorn oauth_lab.main:app --reload --port 8000
 
 # Run the server against Postgres (requires docker-compose up)
-dev-prod:
+dev-prod: migrate-prod
     OAUTH_LAB_DATABASE_URL=postgresql+asyncpg://oauth:oauth@localhost:5432/oauth_lab \
         .venv/bin/uvicorn oauth_lab.main:app --reload --port 8000
 
+# --- Schema migrations (Alembic) ------------------------------------------
+# Schema is an explicit operator step; the app only verifies it is at head.
+
+# Apply all migrations to the SQLite dev DB (same URL as `just dev`).
+migrate:
+    OAUTH_LAB_DATABASE_URL="${OAUTH_LAB_DATABASE_URL:-sqlite+aiosqlite:///./oauth_lab.db}" \
+        .venv/bin/alembic upgrade head
+
+# Apply all migrations to Postgres (same URL as `just dev-prod`).
+migrate-prod:
+    OAUTH_LAB_DATABASE_URL=postgresql+asyncpg://oauth:oauth@localhost:5432/oauth_lab \
+        .venv/bin/alembic upgrade head
+
+# Autogenerate a new revision from model changes: `just migrate-new "add foo"`.
+migrate-new message="":
+    OAUTH_LAB_DATABASE_URL="${OAUTH_LAB_DATABASE_URL:-sqlite+aiosqlite:///./oauth_lab.db}" \
+        .venv/bin/alembic revision --autogenerate -m "{{message}}"
+
+# Roll back the most recent migration (SQLite dev DB).
+migrate-down:
+    OAUTH_LAB_DATABASE_URL="${OAUTH_LAB_DATABASE_URL:-sqlite+aiosqlite:///./oauth_lab.db}" \
+        .venv/bin/alembic downgrade -1
+
+# Show the full revision history and which revision the DB is on.
+migrate-history:
+    OAUTH_LAB_DATABASE_URL="${OAUTH_LAB_DATABASE_URL:-sqlite+aiosqlite:///./oauth_lab.db}" \
+        .venv/bin/alembic history --verbose
+    OAUTH_LAB_DATABASE_URL="${OAUTH_LAB_DATABASE_URL:-sqlite+aiosqlite:///./oauth_lab.db}" \
+        .venv/bin/alembic current
+
+# Drop the SQLite dev DB and re-migrate from scratch (then re-run `just seed`).
+db-reset:
+    rm -f ./oauth_lab.db
+    just migrate
+    @echo "Schema reset. Run 'just seed' to repopulate demo data."
+
 # Seed demo clients into the configured database (idempotent — safe to re-run).
 # Defaults to the same SQLite URL as `just dev` so the two stay in sync.
-seed:
+# Migrates first so seeding never runs against an unmigrated DB.
+seed: migrate
     OAUTH_LAB_DATABASE_URL="${OAUTH_LAB_DATABASE_URL:-sqlite+aiosqlite:///./oauth_lab.db}" \
         .venv/bin/python -m oauth_lab.adapter.inbound.cli seed
 
 # Seed against Postgres (matches `just dev-prod`)
-seed-prod:
+seed-prod: migrate-prod
     OAUTH_LAB_DATABASE_URL=postgresql+asyncpg://oauth:oauth@localhost:5432/oauth_lab \
         .venv/bin/python -m oauth_lab.adapter.inbound.cli seed
 

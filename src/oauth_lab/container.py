@@ -14,8 +14,9 @@ from __future__ import annotations
 
 import logging
 from dataclasses import dataclass
+from pathlib import Path
 
-from sqlalchemy.ext.asyncio import async_sessionmaker, create_async_engine
+from sqlalchemy.ext.asyncio import AsyncEngine, async_sessionmaker, create_async_engine
 
 # Adapter — outbound (driven) implementations
 from oauth_lab.adapter.outbound.crypto.argon2_secret_hasher import Argon2SecretHasher
@@ -47,7 +48,6 @@ from oauth_lab.adapter.outbound.persistence.memory.trusted_assertion_issuer_repo
     InMemoryTrustedAssertionIssuerRepository,
 )
 from oauth_lab.adapter.outbound.persistence.memory.user_repository import InMemoryUserRepository
-from oauth_lab.adapter.outbound.persistence.orm.models import Base
 from oauth_lab.adapter.outbound.persistence.postgres.authorization_code_repository import (
     PostgresAuthorizationCodeRepository,
 )
@@ -163,9 +163,56 @@ _logger = logging.getLogger("oauth_lab")
 _DEV_SESSION_SECRET = "dev-only-change-me"  # noqa: S105 — matches Settings default (not a real secret)
 _LOCALHOST_ISSUER_PREFIXES = ("http://localhost", "http://127.0.0.1")
 
+# Repo root holds alembic.ini and migrations/. Resolved once at import time
+# (a pure path computation, off the async boot path) — src/oauth_lab/ → repo.
+_REPO_ROOT = Path(__file__).resolve().parents[2]
+
 
 def _is_localhost_issuer(issuer: str) -> bool:
     return issuer.startswith(_LOCALHOST_ISSUER_PREFIXES)
+
+
+async def _verify_schema_at_head(engine: AsyncEngine, settings: Settings) -> None:
+    """Fail fast unless the SQL database is migrated to the head revision.
+
+    Schema creation is an explicit operator step (`alembic upgrade head`), not
+    something the app does on boot — DDL-on-startup hides drift and races
+    replicas. Instead we *verify* the database is at head and refuse to serve
+    if not, turning "forgot to migrate" into a loud, actionable error rather
+    than mysterious runtime failures against a stale schema.
+
+    Alembic imports are local: this is the only place that needs Alembic at
+    runtime, and keeping them here avoids paying the import cost for `memory://`.
+    """
+    from alembic.config import Config
+    from alembic.runtime.migration import MigrationContext
+    from alembic.script import ScriptDirectory
+    from sqlalchemy import Connection
+
+    cfg = Config(str(_REPO_ROOT / "alembic.ini"))
+    cfg.set_main_option("script_location", str(_REPO_ROOT / "migrations"))
+
+    head = ScriptDirectory.from_config(cfg).get_current_head()
+
+    def _current_revision(sync_conn: Connection) -> str | None:
+        return MigrationContext.configure(sync_conn).get_current_revision()
+
+    async with engine.connect() as conn:
+        current = await conn.run_sync(_current_revision)
+
+    if current == head:
+        return
+
+    if current is None:
+        raise RuntimeError(
+            "Database schema is not initialized (no alembic_version found, "
+            f"expected={head}). Run 'just migrate' (alembic upgrade head) "
+            f"against {settings.database_url} before starting the server."
+        )
+    raise RuntimeError(
+        f"Database schema is not up to date (db={current}, expected={head}). "
+        "Run 'just migrate' (alembic upgrade head)."
+    )
 
 
 def _check_session_secret(settings: Settings) -> None:
@@ -496,8 +543,11 @@ async def _build_repositories(
         )
 
     engine = create_async_engine(url, future=True)
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    # The app does NOT create or migrate the schema — that is an explicit
+    # operator step (`alembic upgrade head`). Verify we are at head and fail
+    # fast otherwise, so a forgotten migration is caught here, not later as a
+    # confusing query error against a stale schema.
+    await _verify_schema_at_head(engine, settings)
     session_factory = async_sessionmaker(engine, expire_on_commit=False)
 
     if url.startswith("sqlite"):
