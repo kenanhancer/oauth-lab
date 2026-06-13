@@ -68,13 +68,17 @@ The full map — every port, adapter, and service, and the rule it obeys
 
 ```
 oauth-lab/
-├── Justfile                          dev commands (install / dev / seed / test / lint)
+├── Justfile                          dev commands (install / dev / migrate / seed / test)
 ├── pyproject.toml                    deps + ruff / mypy --strict / pytest config
 ├── openapi.yaml                      vendored contract snapshot from oauth-openapi
 ├── openapitools.json                 openapi-generator pin (7.14.0)
 ├── Dockerfile / docker-compose.yaml  app image + Postgres for `just dev-prod`
 ├── .env.example                      OAUTH_LAB_* settings template
 ├── .tool-versions / .python-version  Python 3.12.7 pin
+├── alembic.ini                       Alembic config — URL comes from Settings, not here
+├── migrations/                       schema migrations (source of truth for the DB)
+│   ├── env.py                        async env — reads OAUTH_LAB_DATABASE_URL
+│   └── versions/                     one revision per schema change
 ├── tests/                            unit + integration, by OAuth scenario
 └── src/oauth_lab/
     ├── main.py                       HTTP composition root — mounts every router via its
@@ -402,6 +406,52 @@ Selection is driven by `OAUTH_LAB_DATABASE_URL`:
 | `memory://` | `InMemoryClientRepository` |
 | `sqlite+aiosqlite://` | `SQLiteClientRepository` |
 | `postgresql+asyncpg://` | `PostgresClientRepository` |
+
+The SQL backends use SQLAlchemy's async engine. The application **does not
+create or alter the schema** — that is an explicit operator step (see below).
+On boot it verifies the database is migrated to the latest revision and refuses
+to start otherwise. `memory://` has no schema and is unaffected.
+
+## Database & migrations
+
+Schema and data are kept separate: **schema** is owned by Alembic migrations
+(run in every environment), **demo data** is a dev-only seeding step.
+
+### Schema — Alembic migrations
+
+Migrations live in `migrations/versions/` and are the source of truth for the
+schema. `alembic.ini` sits at the repo root; the async `migrations/env.py`
+reads the database URL from `Settings().database_url` (env var
+`OAUTH_LAB_DATABASE_URL`) so the tooling and the app always target the same
+database. `memory://` is rejected — Alembic needs a SQL backend.
+
+| Command | What it does |
+|---|---|
+| `just migrate` | Apply all migrations (`alembic upgrade head`) to the dev SQLite DB |
+| `just migrate-prod` | Apply migrations to Postgres (`just dev-prod` URL) |
+| `just migrate-new "msg"` | Autogenerate a new revision from model changes |
+| `just migrate-down` | Roll back the most recent migration |
+| `just migrate-history` | Show the revision history and the DB's current revision |
+| `just db-reset` | Drop the SQLite DB and re-migrate from scratch |
+
+The app **verifies schema-at-head on boot** for SQL backends: if you forgot to
+migrate, it fails fast with an actionable error (`Run 'just migrate'`) instead
+of failing later with confusing queries against a stale schema. `just dev`,
+`just dev-prod`, `just seed`, and `just seed-prod` run their migrate step first,
+so the one-command workflow still works.
+
+A parity test (`tests/integration/persistence/test_migration_parity.py`)
+applies the migrations to a fresh database and asserts the result matches the
+ORM models, permanently guarding against models/migration drift.
+
+### Demo data — seeding
+
+`just seed` populates demo clients, a demo user, and a trusted assertion issuer
+(idempotent — safe to re-run). This is **dev-only**: the credentials it writes
+(`demo-client`/`demo-secret`, `alice`/`alice-password`) are publicly known, so
+the CLI refuses to seed a non-localhost issuer unless `OAUTH_LAB_ALLOW_DEMO_SEED=true`
+is set — mirroring the session-secret fail-closed guard. Real deployments
+register their own clients and never run the seeder.
 
 ## Regenerating from the spec
 

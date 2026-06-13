@@ -9,14 +9,40 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import sys
 
 from oauth_lab.application.port.inbound.seed_demo_data_use_case import SeedDemoDataResult
 from oauth_lab.config import Settings
-from oauth_lab.container import build_container
+from oauth_lab.container import _is_localhost_issuer, build_container
+
+
+def _demo_seed_refusal(settings: Settings) -> str | None:
+    """Return why demo seeding must be refused, or None if it may proceed.
+
+    Pure (no I/O) so it is trivially unit-testable. Demo seeding writes
+    publicly-known credentials (demo-client/demo-secret, alice/alice-password);
+    against a real (non-localhost) issuer that is a standing credential leak, so
+    we fail closed unless the operator explicitly opts in. This mirrors the
+    container's fail-closed session-secret guard.
+    """
+    if _is_localhost_issuer(settings.issuer) or settings.allow_demo_seed:
+        return None
+    return (
+        f"Refusing to seed demo data: the issuer ({settings.issuer!r}) is not "
+        "localhost. Demo seeding inserts publicly-known credentials "
+        "(demo-client/demo-secret, alice/alice-password) that are unsafe in "
+        "production — real deployments register their own clients and users. "
+        "Set OAUTH_LAB_ALLOW_DEMO_SEED=true to override (e.g. a shared dev "
+        "environment you intend to fill with demo data)."
+    )
 
 
 async def _run() -> int:
     settings = Settings()
+    refusal = _demo_seed_refusal(settings)
+    if refusal is not None:
+        print(refusal, file=sys.stderr)
+        return 1
     container = await build_container(settings)
     result = await container.seed_demo_data.execute()
     _render(settings.database_url, result)

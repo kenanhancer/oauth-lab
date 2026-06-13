@@ -26,6 +26,11 @@ class Settings(BaseSettings):
     issuer: str = "http://localhost:8000"
     database_url: str = "memory://"
 
+    # Demo seeding writes publicly-known credentials (demo-client/demo-secret,
+    # alice/alice-password). The CLI refuses to seed a non-localhost issuer
+    # unless this is set, so they cannot leak into a real deployment.
+    allow_demo_seed: bool = False
+
     access_token_ttl_seconds: int = 3600
     refresh_token_ttl_seconds: int = 30 * 24 * 3600  # 30 days (RFC 9700 §2.2.2 rotation)
     authorization_code_ttl_seconds: int = 60  # RFC 9700 §2.1.1 recommends ≤60s
